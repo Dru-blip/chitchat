@@ -1,0 +1,10 @@
+{
+  "name": "chitchat",
+  "private":"true",
+  "scripts": {
+    "dev:api":"npm --workspace=server run start"
+  },
+  "workspaces":[
+    "apps/*"
+  ]
+}
