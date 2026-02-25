@@ -1,6 +1,7 @@
 # compiled output
 /apps/api/dist
 /node_modules
+/apps/api/node_modules
 /apps/api/build
 
 # Logs
@@ -55,7 +56,7 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-/apps/api/src/prisma/generated/prisma
+/apps/api/src/prisma/generated/
 
 *.db
 *.sqlite
