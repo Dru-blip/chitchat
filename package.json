@@ -5,6 +5,8 @@
     "dev:api": "npm --workspace=server run start"
   },
   "workspaces": [
-    "apps/*"
-  ]
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {}
 }
