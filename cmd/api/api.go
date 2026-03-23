@@ -3,30 +3,32 @@ package api
 import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db"
-	"net/http"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 )
 
 type Server struct {
 	store *db.Store
-	api   *chi.Mux
+	api   *echo.Echo
 }
 
 func NewServer(store *db.Store) *Server {
+	api := echo.New()
+	api.Use(middleware.RequestLogger())
+	api.Use(middleware.Recover())
+	api.Use(middleware.RequestID())
 	return &Server{
 		store: store,
-		api:   chi.NewRouter(),
+		api:   api,
 	}
 }
 
 func (s *Server) RegisterRoutes() {
-	s.api.Use(middleware.Logger)
-	authHandler := auth.NewHandler(s.store)
-	s.api.Mount("/auth", authHandler.Register())
+	authHandler := auth.NewHandler(s.store.Queries)
+	authHandler.Register(s.api)
 }
 
 func (s *Server) Start() {
-	http.ListenAndServe(":5000", s.api)
+	s.api.Start(":5000")
 }

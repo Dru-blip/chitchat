@@ -2,25 +2,27 @@ package db
 
 import (
 	"chitchat/internal/db/sqlc"
-	"database/sql"
+	"context"
 
-	_ "modernc.org/sqlite"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store struct {
-	Db      *sql.DB
+	Db      *pgxpool.Pool
 	Queries *sqlc.Queries
 }
 
-func Connect() (*Store, error) {
-	db, err := sql.Open("sqlite", "data.db")
+func Connect(connString string) (*Store, error) {
+	ctx := context.Background()
+
+	dbConn, err := pgxpool.New(ctx, connString)
 	if err != nil {
 		return nil, err
 	}
 
 	store := &Store{
-		Db:      db,
-		Queries: sqlc.New(db),
+		Db:      dbConn,
+		Queries: sqlc.New(dbConn),
 	}
 	return store, nil
 }

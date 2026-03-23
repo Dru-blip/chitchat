@@ -1,30 +1,15 @@
 package utils
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"math/big"
-	"net/http"
 )
-
-func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
-}
-
-func WriteError(w http.ResponseWriter, status int, err error) {
-	WriteJSON(w, status, map[string]string{"error": err.Error()})
-}
-
-func ParseJSON(r *http.Request, v any) error {
-	if r.Body == nil {
-		return fmt.Errorf("missing request body")
-	}
-
-	return json.NewDecoder(r.Body).Decode(v)
-}
 
 func GenerateOTPCode(length int) (string, error) {
 	const digits = "0123456789"
@@ -38,4 +23,57 @@ func GenerateOTPCode(length int) (string, error) {
 		byteSlice[i] = digits[num.Int64()]
 	}
 	return string(byteSlice), nil
+}
+
+func SHA256(payload string) string {
+	h := sha256.New()
+	h.Write([]byte(payload))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+func EncryptAES(text string, key string) (string, int, error) {
+	block, err := aes.NewCipher([]byte(key))
+
+	if err != nil {
+		return "", 0, err
+	}
+	gcm, err := cipher.NewGCM(block)
+
+	if err != nil {
+		return "", 0, err
+	}
+	nonceSize := gcm.NonceSize()
+	nonce := make([]byte, nonceSize)
+
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", 0, err
+	}
+
+	ciphertext := gcm.Seal(nonce, nonce, []byte(text), nil)
+	return base64.StdEncoding.EncodeToString(ciphertext), nonceSize, nil
+}
+
+func DecryptAES(key string, cipherText string, nonce string) (string, error) {
+	c, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	decodedCipherText, err := base64.StdEncoding.DecodeString(cipherText)
+	if err != nil {
+		return "", err
+	}
+
+	plainText, err := gcm.Open(nil, []byte(nonce), decodedCipherText, nil)
+	if err != nil {
+		return "", err
+	}
+
+	//TODO: should return bytes instead of string
+	return base64.StdEncoding.EncodeToString(plainText), nil
 }

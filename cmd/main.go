@@ -4,6 +4,7 @@ import (
 	"chitchat/cmd/api"
 	"chitchat/internal/db"
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -16,7 +17,7 @@ func init() {
 }
 
 func main() {
-	store, err := db.Connect()
+	store, err := db.Connect(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}

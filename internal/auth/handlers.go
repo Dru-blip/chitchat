@@ -1,108 +1,160 @@
 package auth
 
 import (
-	"chitchat/internal/db"
 	"chitchat/internal/db/sqlc"
 	"chitchat/internal/utils"
-	"context"
+	"crypto/rand"
+	"crypto/subtle"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/gofrs/uuid/v5"
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
 	"github.com/wneessen/go-mail"
 )
 
 type Handler struct {
-	store *db.Store
+	repo OtpSessionRespository
 }
 
 type OtpData struct {
 	Otp string
 }
 
-func NewHandler(store *db.Store) *Handler {
+func NewHandler(repo *sqlc.Queries) *Handler {
 	return &Handler{
-		store: store,
+		repo: repo,
 	}
 }
 
-func (h *Handler) Register() *chi.Mux {
-	r := chi.NewRouter()
-	r.Post("/send-otp", h.sendOtp)
-	r.Get("/ping", h.Ping)
-	return r
+func (h *Handler) Register(e *echo.Echo) {
+	authGroup := e.Group("/auth")
+
+	authGroup.POST("/send-otp", h.sendOtp)
+	authGroup.POST("/verify-otp", h.verifyOtp)
+	authGroup.GET("/ping", h.Ping)
 }
 
-func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
-	utils.WriteJSON(w, 200, "Pong")
+func (h *Handler) Ping(c *echo.Context) error {
+	return c.JSON(http.StatusOK, "pong")
 }
 
-func (h *Handler) sendOtp(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) sendOtp(c *echo.Context) error {
 	var payload SendOtpPayload
 
-	if err := utils.ParseJSON(r, &payload); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err)
-		return
+	if err := c.Bind(&payload); err != nil {
+		return c.String(http.StatusBadRequest, "Bad Input")
 	}
 
 	otp, err := utils.GenerateOTPCode(6)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
-		return
+		return c.String(http.StatusInternalServerError, "Failed to send Otp")
 	}
 
 	message := mail.NewMsg()
 	if err = message.From(os.Getenv("SMTP_FROM")); err != nil {
-		log.Print(err.Error())
-		utils.WriteError(w, http.StatusInternalServerError, err)
-		return
+		//TODO: change error messages. instead of sending same message.
+		return c.String(http.StatusInternalServerError, "Failed to send Otp")
 	}
 
 	if err = message.To(payload.Email); err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
-		return
+		return c.String(http.StatusInternalServerError, "Failed to send Otp")
 	}
 
-	message.Subject("Your OTP Code")
-	message.SetBodyString(mail.TypeTextPlain, fmt.Sprintf("otp : %s\n", otp))
+	message.Subject("Your OTP for Chat App")
 
-	client, err := mail.NewClient(os.Getenv("SMTP_HOST"),
-		mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover), mail.WithTLSPortPolicy(mail.TLSMandatory),
-		mail.WithUsername(os.Getenv("SMTP_USER")), mail.WithPassword(os.Getenv("SMTP_PASS")),
+	plain := fmt.Sprintf(`
+Your OTP is: %s
+This code is valid for 5 minutes.
+chitchat
+`, otp)
+
+	html := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; line-height:1.5;">
+  <p>Your OTP is:</p>
+  <h2 style="letter-spacing:2px;">%s</h2>
+  <p>This code is valid for 5 minutes.</p>
+  <p>chitchat</p>
+</body>
+</html>
+`, otp)
+
+	message.SetBodyString(mail.TypeTextPlain, plain)
+	message.AddAlternativeString(mail.TypeTextHTML, html)
+
+	client, err := mail.NewClient(
+		os.Getenv("SMTP_HOST"),
+		mail.WithPort(587),
+		mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
+		mail.WithTLSPortPolicy(mail.TLSMandatory),
+		mail.WithUsername(os.Getenv("SMTP_USER")),
+		mail.WithPassword(os.Getenv("SMTP_PASS")),
 	)
 
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
-		return
+		return c.String(http.StatusInternalServerError, "Failed to send Otp")
 	}
+	challenge := rand.Text()
+	challengeHashed := utils.SHA256(challenge)
 
-	id, err := uuid.NewV4()
-
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	h.store.Queries.CreateOtpSession(context.Background(), sqlc.CreateOtpSessionParams{
-		ID:        id.String(),
+	otpSession, err := h.repo.CreateOtpSession(c.Request().Context(), sqlc.CreateOtpSessionParams{
 		Email:     payload.Email,
 		Code:      otp,
 		Pubkey:    payload.Pubkey,
 		ExpiresAt: time.Now().Add(5 * time.Minute),
+		Challenge: challengeHashed,
 	})
 
-	//TODO: move this to a background worker
-	if err := client.DialAndSend(message); err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
-		return
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Failed to send Otp")
 	}
 
-	utils.WriteJSON(w, 200, SendOtpResponse{
-		Challenge: "insert random string",
+	go func() {
+		if err := client.DialAndSend(message); err != nil {
+			log.Printf("Failed to send email to %s", payload.Email)
+		}
+	}()
+
+	return c.JSON(http.StatusOK, SendOtpResponse{
+		Id:        otpSession.ID.String(),
+		Challenge: challenge,
 		Message:   "OTP sent successfully",
 	})
+}
+
+func (h *Handler) verifyOtp(c *echo.Context) error {
+	var payload VerifyOtpPayload
+
+	if err := c.Bind(&payload); err != nil {
+		return c.String(http.StatusBadRequest, "Bad Input")
+	}
+
+	otpSession, err := h.repo.GetOtpSessionById(c.Request().Context(), uuid.MustParse(payload.Id))
+
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Failed to verify Otp")
+	}
+
+	if otpSession.ExpiresAt.Before(time.Now()) {
+		return c.String(http.StatusUnauthorized, "Session timed out")
+	}
+
+	if otpSession.Email != payload.Email || otpSession.Code != payload.Code {
+		return c.String(http.StatusUnauthorized, "Invalid OTP")
+	}
+
+	plainText, err := utils.DecryptAES(otpSession.Pubkey, payload.Challenge, payload.Nonce)
+
+	if subtle.ConstantTimeCompare([]byte(plainText), []byte(otpSession.Challenge)) != 1 {
+		return c.String(http.StatusUnauthorized, "Invalid OTP")
+	}
+
+	//TODO: verification of digital signature using pubkey
+	// and generate a session for the client.
+	return c.JSON(http.StatusOK, "OTP verified successfully")
 }
