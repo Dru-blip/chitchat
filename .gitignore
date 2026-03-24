@@ -37,3 +37,5 @@ internal/db/sqlc/
 
 *.sqlite
 *.db
+
+r.txt
