@@ -3,6 +3,7 @@ package api
 import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db"
+	"chitchat/internal/utils"
 
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -18,6 +19,12 @@ func NewServer(store *db.Store) *Server {
 	api.Use(middleware.RequestLogger())
 	api.Use(middleware.Recover())
 	api.Use(middleware.RequestID())
+	api.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowCredentials: true,
+	}))
+	api.Validator = utils.NewValidator()
+	api.HTTPErrorHandler = utils.GlobalErrorHandler
 	return &Server{
 		store: store,
 		api:   api,
@@ -30,5 +37,5 @@ func (s *Server) RegisterRoutes() {
 }
 
 func (s *Server) Start() {
-	s.api.Start(":5000")
+	s.api.Start(":5050")
 }

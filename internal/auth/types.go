@@ -8,18 +8,18 @@ import (
 )
 
 type SendOtpPayload struct {
-	Email  string `json:"email"`
-	Pubkey string `json:"pubkey"`
+	Email  string `json:"email" validate:"required,email"`
+	Pubkey string `json:"pubkey" validate:"required"`
 }
 
 type SendOtpResponse struct {
 	Challenge string `json:"challenge"`
 	Message   string `json:"message"`
-	Id        string `json:"request_id"`
+	Id        string `json:"requestId"`
 }
 
 type VerifyOtpPayload struct {
-	Id        string `json:"request_id"`
+	Id        string `json:"requestId"`
 	Email     string `json:"email"`
 	Code      string `json:"code"`
 	Nonce     string `json:"n"`

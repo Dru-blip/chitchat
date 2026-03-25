@@ -10,6 +10,7 @@ import (
 )
 
 func init() {
+	//TODO: should remove this from init function
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)

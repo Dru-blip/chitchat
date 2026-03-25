@@ -49,22 +49,26 @@ func (h *Handler) sendOtp(c *echo.Context) error {
 		return c.String(http.StatusBadRequest, "Bad Input")
 	}
 
+	if err := c.Validate(&payload); err != nil {
+		return err
+	}
+
 	otp, err := utils.GenerateOTPCode(6)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Failed to send Otp")
+		return err
 	}
 
 	message := mail.NewMsg()
 	if err = message.From(os.Getenv("SMTP_FROM")); err != nil {
 		//TODO: change error messages. instead of sending same message.
-		return c.String(http.StatusInternalServerError, "Failed to send Otp")
+		return err
 	}
 
 	if err = message.To(payload.Email); err != nil {
-		return c.String(http.StatusInternalServerError, "Failed to send Otp")
+		return err
 	}
 
-	message.Subject("Your OTP for Chat App")
+	message.Subject("Your OTP")
 
 	plain := fmt.Sprintf(`
 Your OTP is: %s
@@ -87,6 +91,7 @@ chitchat
 	message.SetBodyString(mail.TypeTextPlain, plain)
 	message.AddAlternativeString(mail.TypeTextHTML, html)
 
+	//TODO: should make this a global client instance
 	client, err := mail.NewClient(
 		os.Getenv("SMTP_HOST"),
 		mail.WithPort(587),
@@ -97,8 +102,9 @@ chitchat
 	)
 
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Failed to send Otp")
+		return err
 	}
+
 	challenge := rand.Text()
 	challengeHashed := utils.SHA256(challenge)
 
@@ -111,6 +117,7 @@ chitchat
 	})
 
 	if err != nil {
+		//TODO: should log database errors
 		return c.String(http.StatusInternalServerError, "Failed to send Otp")
 	}
 
