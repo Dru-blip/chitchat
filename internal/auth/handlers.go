@@ -24,7 +24,7 @@ type OtpData struct {
 	Otp string
 }
 
-func NewHandler(repo *sqlc.Queries) *Handler {
+func NewHandler(repo OtpSessionRespository) *Handler {
 	return &Handler{
 		repo: repo,
 	}
