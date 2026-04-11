@@ -39,3 +39,7 @@ internal/db/sqlc/
 *.db
 
 r.txt
+
+.roo
+
+AGENTS.md
