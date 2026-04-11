@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type Service interface {
@@ -36,7 +37,7 @@ func NewService(repo Repository, mailer Mailer) Service {
 }
 
 func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
-
+	//TODO: Check for existing magic links
 	token, err := GenerateMagicLinkToken()
 	if err != nil {
 		return nil, ErrInternal
@@ -65,5 +66,28 @@ func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, ipAdd
 }
 
 func (s *service) VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (string, uuid.UUID, error) {
+	token = utils.SHA256(token)
+	magic_link_session, err := s.repo.GetMagicLinkSessionByToken(ctx, token)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return "", uuid.UUID{}, ErrInvalidMagicLink
+		}
+		return "", uuid.UUID{}, ErrInternal
+	}
+
+	if time.Now().After(magic_link_session.ExpiresAt) {
+		return "", uuid.UUID{}, ErrMagicLinkExpired
+	}
+
+	if magic_link_session.Status == sqlc.MagicLinkStatusRevoked || magic_link_session.Status == sqlc.MagicLinkStatusUsed {
+		return "", uuid.UUID{}, ErrInvalidMagicLink
+	}
+
+	_, err = s.repo.MarkMagicLinkAsUsed(ctx, token)
+	if err != nil {
+		return "", uuid.UUID{}, ErrInternal
+	}
+
 	return "", uuid.Nil, nil
 }
