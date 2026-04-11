@@ -3,6 +3,7 @@ package api
 import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db"
+	"chitchat/internal/mailer"
 	"chitchat/internal/utils"
 
 	"github.com/labstack/echo/v5"
@@ -10,11 +11,12 @@ import (
 )
 
 type Server struct {
-	store *db.Store
-	api   *echo.Echo
+	store  *db.Store
+	api    *echo.Echo
+	Mailer *mailer.Mailer
 }
 
-func NewServer(store *db.Store) *Server {
+func NewServer(store *db.Store) (*Server, error) {
 	api := echo.New()
 	api.Use(middleware.RequestLogger())
 	api.Use(middleware.Recover())
@@ -25,14 +27,23 @@ func NewServer(store *db.Store) *Server {
 	}))
 	api.Validator = utils.NewValidator()
 	api.HTTPErrorHandler = utils.GlobalErrorHandler
-	return &Server{
-		store: store,
-		api:   api,
+
+	Mailer, err := mailer.New()
+
+	if err != nil {
+		return nil, err
 	}
+
+	return &Server{
+		store:  store,
+		api:    api,
+		Mailer: Mailer,
+	}, nil
 }
 
 func (s *Server) RegisterRoutes() {
-	authHandler := auth.NewHandler(s.store.Queries)
+	authService := auth.NewService(s.store.Queries, s.Mailer)
+	authHandler := auth.NewHandler(authService, s.api.Logger)
 	authHandler.Register(s.api)
 }
 

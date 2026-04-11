@@ -22,7 +22,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server := api.NewServer(store)
+	server, err := api.NewServer(store)
+	if err != nil {
+		log.Fatal(err)
+	}
 	server.RegisterRoutes()
 	server.Start()
 }
