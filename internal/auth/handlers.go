@@ -25,7 +25,6 @@ func (h *Handler) Register(e *echo.Echo) {
 	auth := e.Group("/auth")
 	auth.POST("/send-magic-link", h.sendMagicLink)
 	auth.POST("/verify-magic-link", h.verifyMagicLink)
-	auth.GET("/me", h.me, AuthMiddleware)
 }
 
 func (h *Handler) sendMagicLink(c *echo.Context) error {

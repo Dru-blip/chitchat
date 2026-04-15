@@ -37,7 +37,7 @@ CREATE INDEX idx_otp_expires_at ON otp_sessions(expires_at);
 CREATE INDEX idx_otp_pubkey ON otp_sessions(pubkey);
 
 
-CREATE TYPE IF NOT EXISTS client_type AS ENUM ('mobile', 'web', 'desktop');
+CREATE TYPE  client_type AS ENUM ('mobile', 'web', 'desktop');
 
 CREATE TABLE IF NOT EXISTS devices(
     id UUID PRIMARY KEY NOT NULL DEFAULT uuidv7(),
