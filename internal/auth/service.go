@@ -17,7 +17,7 @@ type Service interface {
 	SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error)
 	VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (*sqlc.MagicLinkSession, error)
 	GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, error)
-	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error)
+	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, bool, error)
 }
 
 type SessionInfo struct {
@@ -113,7 +113,7 @@ func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*s
 	return &user, nil
 }
 
-func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error) {
+func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, bool, error) {
 	device, err := s.repo.GetDeviceByPubkey(ctx, pubkey)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -125,11 +125,11 @@ func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubk
 				Client:    "web",
 				UserAgent: &user_agent,
 			}); err != nil {
-				return nil, err
+				return nil, false, err
 			}
-			return &device, nil
+			return &device, true, nil
 		}
-		return nil, err
+		return nil, false, err
 	}
-	return &device, nil
+	return &device, false, nil
 }

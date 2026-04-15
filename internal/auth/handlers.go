@@ -30,7 +30,6 @@ func (h *Handler) Register(e *echo.Echo) {
 
 func (h *Handler) sendMagicLink(c *echo.Context) error {
 	var payload SendMagicLinkPayload
-
 	if err := c.Bind(&payload); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Bad Input")
 	}
@@ -70,7 +69,7 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 
 	//TODO: device creation and prekeys setup
 	//TODO: should receive windows and client fingerprints from payload
-	device, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent())
+	device, created, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent())
 
 	session_manager := c.Get("_session").(*scs.SessionManager)
 	session_manager.Put(c.Request().Context(), "user", SessionStore{
@@ -80,9 +79,11 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 		DeviceId: device.ID.String(),
 	})
 
-	return c.JSON(http.StatusOK, map[string]string{
-		"userId": user.ID.String(),
-		"device": device.Os,
+	return c.JSON(http.StatusOK, map[string]any{
+		"userId":   user.ID.String(),
+		"device":   device.Os,
+		"onboard":  created,
+		"redirect": true,
 	})
 }
 
