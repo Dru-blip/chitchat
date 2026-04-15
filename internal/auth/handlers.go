@@ -25,6 +25,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	auth := e.Group("/auth")
 	auth.POST("/send-magic-link", h.sendMagicLink)
 	auth.POST("/verify-magic-link", h.verifyMagicLink)
+	auth.GET("/me", h.me, AuthMiddleware)
 }
 
 func (h *Handler) sendMagicLink(c *echo.Context) error {
@@ -93,4 +94,9 @@ func getClientIP(c *echo.Context) netip.Addr {
 		return netip.MustParseAddr("127.0.0.5")
 	}
 	return addr
+}
+
+func (h *Handler) me(c *echo.Context) error {
+	user := c.Get("user").(SessionStore)
+	return c.JSON(http.StatusOK, user)
 }

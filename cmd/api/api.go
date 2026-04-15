@@ -23,6 +23,8 @@ type Server struct {
 }
 
 func NewServer(store *db.Store) (*Server, error) {
+	gob.Register(auth.SessionStore{})
+
 	api := echo.New()
 
 	//TODO: Move session manager creation into a factory function
@@ -36,8 +38,6 @@ func NewServer(store *db.Store) (*Server, error) {
 	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
 	sessionManager.Cookie.Secure = false
 
-	gob.Register(auth.SessionStore{})
-
 	api.Use(middleware.RequestLogger())
 	api.Use(middleware.Recover())
 	api.Use(middleware.RequestID())
@@ -49,7 +49,7 @@ func NewServer(store *db.Store) (*Server, error) {
 	api.Validator = utils.NewValidator()
 	api.HTTPErrorHandler = utils.GlobalErrorHandler
 
-	api.Use(NewSessionMiddleware(sessionManager))
+	api.Use(auth.NewSessionMiddleware(sessionManager))
 
 	Mailer, err := mailer.New()
 
@@ -73,13 +73,4 @@ func (s *Server) RegisterRoutes() {
 
 func (s *Server) Start() {
 	s.api.Start(":5050")
-}
-
-func NewSessionMiddleware(store *scs.SessionManager) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			c.Set("_session", store)
-			return next(c)
-		}
-	}
 }
