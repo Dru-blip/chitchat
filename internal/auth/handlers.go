@@ -1,16 +1,12 @@
 package auth
 
 import (
-	"errors"
 	"log/slog"
 	"net/http"
 	"net/netip"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/labstack/echo/v5"
-)
-
-const (
-	SessionCookieName = "session"
 )
 
 type Handler struct {
@@ -62,15 +58,30 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 	}
 	addr := getClientIP(c)
 
-	sessionId, userId, err := h.service.VerifyMagicLink(c.Request().Context(), payload.Token, addr, c.Request().UserAgent())
+	magic_session, err := h.service.VerifyMagicLink(c.Request().Context(), payload.Token, addr, c.Request().UserAgent())
+	//TODO: if not user , create user and device
 
 	if err != nil {
-		return h.mapAuthError(err)
+		return err
 	}
 
+	user, err := h.service.GetOrCreateUser(c.Request().Context(), magic_session.Email, magic_session.Pubkey)
+
+	//TODO: device creation and prekeys setup
+	//TODO: should receive windows and client fingerprints from payload
+	device, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent())
+
+	session_manager := c.Get("_session").(*scs.SessionManager)
+	session_manager.Put(c.Request().Context(), "user", SessionStore{
+		Email:    user.Email,
+		Pubkey:   device.Pubkey,
+		UserId:   user.ID.String(),
+		DeviceId: device.ID.String(),
+	})
+
 	return c.JSON(http.StatusOK, map[string]string{
-		"sessionId": sessionId,
-		"userId":    userId.String(),
+		"userId": user.ID.String(),
+		"device": device.Os,
 	})
 }
 
@@ -82,27 +93,4 @@ func getClientIP(c *echo.Context) netip.Addr {
 		return netip.MustParseAddr("127.0.0.5")
 	}
 	return addr
-}
-
-// TODO: should find another way to map errors
-func (h *Handler) mapAuthError(err error) error {
-	switch {
-	case errors.Is(err, ErrInvalidMagicLink),
-		errors.Is(err, ErrMagicLinkUsed),
-		errors.Is(err, ErrMagicLinkRevoked),
-		errors.Is(err, ErrMagicLinkExpired):
-		return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
-	case errors.Is(err, ErrInvalidRequest):
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	case errors.Is(err, ErrUnauthorized),
-		errors.Is(err, ErrInvalidSession),
-		errors.Is(err, ErrSessionRevoked),
-		errors.Is(err, ErrNoSession):
-		return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
-	case errors.Is(err, ErrInternal):
-		return echo.NewHTTPError(http.StatusInternalServerError, "Internal server error")
-	default:
-		h.logger.Error("verify_magic_link_failed", "error", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to verify magic link")
-	}
 }

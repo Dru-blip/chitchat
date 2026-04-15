@@ -22,6 +22,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer store.Db.Close()
 	server, err := api.NewServer(store)
 	if err != nil {
 		log.Fatal(err)

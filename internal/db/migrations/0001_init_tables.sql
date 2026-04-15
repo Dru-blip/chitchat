@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     image TEXT DEFAULT NULL,
     password TEXT DEFAULT NULL,
     ipkey TEXT NOT NULL UNIQUE,
-    onboarding BOOLEAN DEFAULT FALSE NOT NULL,
+    onboarding BOOLEAN DEFAULT TRUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -37,14 +37,17 @@ CREATE INDEX idx_otp_expires_at ON otp_sessions(expires_at);
 CREATE INDEX idx_otp_pubkey ON otp_sessions(pubkey);
 
 
+CREATE TYPE IF NOT EXISTS client_type AS ENUM ('mobile', 'web', 'desktop');
+
 CREATE TABLE IF NOT EXISTS devices(
     id UUID PRIMARY KEY NOT NULL DEFAULT uuidv7(),
     pubkey TEXT UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
-    os TEXT NOT NULL,
-    client TEXT NOT NULL,
+    os TEXT NOT NULL,  -- iOS, Android, Windows, macOS, Linux
+    client client_type NOT NULL,
     user_agent TEXT,
     user_id UUID NOT NULL,
+    last_seen TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     

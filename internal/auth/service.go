@@ -4,6 +4,7 @@ import (
 	"chitchat/internal/db/sqlc"
 	"chitchat/internal/utils"
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"time"
@@ -14,7 +15,9 @@ import (
 
 type Service interface {
 	SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error)
-	VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (string, uuid.UUID, error)
+	VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (*sqlc.MagicLinkSession, error)
+	GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, error)
+	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error)
 }
 
 type SessionInfo struct {
@@ -65,29 +68,68 @@ func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, ipAdd
 	}, nil
 }
 
-func (s *service) VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (string, uuid.UUID, error) {
+func (s *service) VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (*sqlc.MagicLinkSession, error) {
 	token = utils.SHA256(token)
 	magic_link_session, err := s.repo.GetMagicLinkSessionByToken(ctx, token)
+	session := &magic_link_session
 
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return "", uuid.UUID{}, ErrInvalidMagicLink
+		if errors.Is(err, pgx.ErrNoRows) {
+			return session, ErrInvalidMagicLink
 		}
-		return "", uuid.UUID{}, ErrInternal
+		return session, ErrInternal
 	}
 
-	if time.Now().After(magic_link_session.ExpiresAt) {
-		return "", uuid.UUID{}, ErrMagicLinkExpired
+	if time.Now().After(session.ExpiresAt) {
+		return session, ErrMagicLinkExpired
 	}
 
-	if magic_link_session.Status == sqlc.MagicLinkStatusRevoked || magic_link_session.Status == sqlc.MagicLinkStatusUsed {
-		return "", uuid.UUID{}, ErrInvalidMagicLink
+	if session.Status == sqlc.MagicLinkStatusRevoked || session.Status == sqlc.MagicLinkStatusUsed {
+		return session, ErrInvalidMagicLink
 	}
 
 	_, err = s.repo.MarkMagicLinkAsUsed(ctx, token)
 	if err != nil {
-		return "", uuid.UUID{}, ErrInternal
+		return session, ErrInternal
 	}
 
-	return "", uuid.Nil, nil
+	return session, nil
+}
+
+func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, error) {
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			if user, err = s.repo.CreateUser(ctx, sqlc.CreateUserParams{
+				Email: email,
+				Ipkey: pubkey,
+			}); err != nil {
+				return nil, err
+			}
+			return &user, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error) {
+	device, err := s.repo.GetDeviceByPubkey(ctx, pubkey)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			if device, err = s.repo.CreateDevice(ctx, sqlc.CreateDeviceParams{
+				Pubkey:    pubkey,
+				UserID:    user_id,
+				Name:      "unknown",
+				Os:        os,
+				Client:    "web",
+				UserAgent: &user_agent,
+			}); err != nil {
+				return nil, err
+			}
+			return &device, nil
+		}
+		return nil, err
+	}
+	return &device, nil
 }

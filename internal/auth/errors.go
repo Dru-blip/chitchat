@@ -1,21 +1,27 @@
 package auth
 
-import "errors"
+import (
+	"net/http"
+
+	"github.com/labstack/echo/v5"
+)
 
 var (
 	// General errors
-	ErrInvalidRequest = errors.New("invalid request")
-	ErrUnauthorized   = errors.New("unauthorized")
-	ErrInternal       = errors.New("internal error")
+	ErrInvalidRequest = echo.NewHTTPError(http.StatusBadRequest, "invalid request")
+	ErrUnauthorized   = echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+	ErrInternal       = echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 
 	// Magic Link errors
-	ErrInvalidMagicLink = errors.New("invalid or expired magic link")
-	ErrMagicLinkUsed    = errors.New("magic link already used")
-	ErrMagicLinkRevoked = errors.New("magic link revoked")
-	ErrMagicLinkExpired = errors.New("magic link expired")
+	ErrInvalidMagicLink = echo.NewHTTPError(http.StatusUnauthorized, "invalid or expired magic link")
+	ErrMagicLinkUsed    = echo.NewHTTPError(http.StatusUnauthorized, "magic link already used")
+	ErrMagicLinkRevoked = echo.NewHTTPError(http.StatusUnauthorized, "magic link revoked")
+	ErrMagicLinkExpired = echo.NewHTTPError(http.StatusUnauthorized, "magic link expired")
 
 	// Session errors
-	ErrInvalidSession = errors.New("session expired or invalid")
-	ErrSessionRevoked = errors.New("session revoked")
-	ErrNoSession      = errors.New("no active session")
+	ErrInvalidSession = echo.NewHTTPError(http.StatusUnauthorized, "session expired or invalid")
+	ErrSessionRevoked = echo.NewHTTPError(http.StatusUnauthorized, "session revoked")
+	ErrNoSession      = echo.NewHTTPError(http.StatusUnauthorized, "no active session")
+
+	ErrUserNotFound = echo.NewHTTPError(http.StatusNotFound, "user not found")
 )
