@@ -4,6 +4,7 @@ import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db"
 	"chitchat/internal/mailer"
+	"chitchat/internal/users"
 	"chitchat/internal/utils"
 	"encoding/gob"
 	"net/http"
@@ -69,6 +70,10 @@ func (s *Server) RegisterRoutes() {
 	authService := auth.NewService(s.store.Queries, s.Mailer)
 	authHandler := auth.NewHandler(authService, s.api.Logger)
 	authHandler.Register(s.api)
+
+	usersService := users.NewService(s.store.Queries)
+	usersHandler := users.NewHandler(usersService, s.api.Logger)
+	usersHandler.Register(s.api)
 }
 
 func (s *Server) Start() {

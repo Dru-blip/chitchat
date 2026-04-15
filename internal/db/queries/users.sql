@@ -18,6 +18,18 @@ RETURNING *;
 
 -- name: UpdateUser :one
 UPDATE users
-SET name = $2, image = $3, password = $4, ipkey = $5, onboarding = $6, updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+SET name = coalesce(sqlc.narg('name'),name), 
+image = coalesce(sqlc.narg('image'),image), 
+password = coalesce(sqlc.narg('password'),password), 
+onboarding = coalesce(sqlc.narg('onboarding'),onboarding) 
+WHERE id = sqlc.arg('id')
 RETURNING *;
+
+
+-- name: OnboardUser :one
+UPDATE users
+SET name=$2,
+image=coalesce(sqlc.narg('image'),image),
+password=$3,
+onboarding=False
+WHERE email=$1 RETURNING *;
