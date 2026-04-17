@@ -33,7 +33,6 @@ sql:
               type: "Time"
               pointer: true
 
-          # (optional) timestamp without tz
           - db_type: "timestamp"
             go_type: "time.Time"
 
