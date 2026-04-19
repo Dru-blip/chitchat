@@ -3,6 +3,7 @@ package api
 import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db"
+	"chitchat/internal/keys"
 	"chitchat/internal/mailer"
 	"chitchat/internal/users"
 	"chitchat/internal/utils"
@@ -74,6 +75,10 @@ func (s *Server) RegisterRoutes() {
 	usersService := users.NewService(s.store.Queries)
 	usersHandler := users.NewHandler(usersService, s.api.Logger)
 	usersHandler.Register(s.api)
+
+	keyService := keys.NewService(s.store.Queries)
+	keyHandler := keys.NewHandler(keyService, s.api.Logger)
+	keyHandler.Register(s.api)
 }
 
 func (s *Server) Start() {

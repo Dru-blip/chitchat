@@ -37,7 +37,7 @@ func (s *service) UploadPrekeys(ctx context.Context, data prekeyUpload) error {
 	//TODO: switch to parse
 	did := uuid.MustParse(data.DeviceID)
 
-	err := s.repo.InsertPreKeys(ctx, sqlc.InsertPreKeysParams{
+	_, err := s.repo.InsertPreKeys(ctx, sqlc.InsertPreKeysParams{
 		Deviceid:    did,
 		Prekeys:     data.Prekeys,
 		Prekeyids:   data.PrekeyIds,
