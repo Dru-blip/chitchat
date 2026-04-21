@@ -3,8 +3,6 @@ package auth
 import (
 	"chitchat/internal/db/sqlc"
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 
 	"github.com/google/uuid"
 )
@@ -54,14 +52,6 @@ const (
 	ContextKeySessionID ContextKey = "sessionID"
 	ContextKeyEmail     ContextKey = "email"
 )
-
-func GenerateMagicLinkToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(b), nil
-}
 
 type SessionStore struct {
 	DeviceId string

@@ -4,7 +4,6 @@ import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db"
 	"chitchat/internal/keys"
-	"chitchat/internal/mailer"
 	"chitchat/internal/users"
 	"chitchat/internal/utils"
 	"encoding/gob"
@@ -20,11 +19,11 @@ import (
 type Server struct {
 	store          *db.Store
 	api            *echo.Echo
-	Mailer         *mailer.Mailer
+	Mailer         Mailer
 	sessionManager *scs.SessionManager
 }
 
-func NewServer(store *db.Store) (*Server, error) {
+func NewServer(store *db.Store, mailer Mailer) (*Server, error) {
 	gob.Register(auth.SessionStore{})
 
 	api := echo.New()
@@ -53,16 +52,10 @@ func NewServer(store *db.Store) (*Server, error) {
 
 	api.Use(auth.NewSessionMiddleware(sessionManager))
 
-	Mailer, err := mailer.New()
-
-	if err != nil {
-		return nil, err
-	}
-
 	return &Server{
 		store:          store,
 		api:            api,
-		Mailer:         Mailer,
+		Mailer:         mailer,
 		sessionManager: sessionManager,
 	}, nil
 }
@@ -83,4 +76,8 @@ func (s *Server) RegisterRoutes() {
 
 func (s *Server) Start() {
 	s.api.Start(":5050")
+}
+
+func (s *Server) Echo() *echo.Echo {
+	return s.api
 }

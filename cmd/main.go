@@ -3,6 +3,7 @@ package main
 import (
 	"chitchat/cmd/api"
 	"chitchat/internal/db"
+	"chitchat/internal/mailer"
 	"log"
 	"os"
 
@@ -10,7 +11,6 @@ import (
 )
 
 func init() {
-	//TODO: should remove this from init function
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
@@ -23,7 +23,12 @@ func main() {
 		log.Fatal(err)
 	}
 	defer store.Db.Close()
-	server, err := api.NewServer(store)
+
+	stmp_mailer, err := mailer.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	server, err := api.NewServer(store, stmp_mailer)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -41,7 +41,7 @@ func NewService(repo Repository, mailer Mailer) Service {
 
 func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
 	//TODO: Check for existing magic links
-	token, err := GenerateMagicLinkToken()
+	token, err := utils.GenerateMagicLinkToken()
 	if err != nil {
 		return nil, ErrInternal
 	}
