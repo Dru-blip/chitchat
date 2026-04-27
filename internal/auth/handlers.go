@@ -58,7 +58,6 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 	addr := getClientIP(c)
 
 	magic_session, err := h.service.VerifyMagicLink(c.Request().Context(), payload.Token, addr, c.Request().UserAgent())
-	//TODO: if not user , create user and device
 
 	if err != nil {
 		return err
@@ -66,9 +65,17 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 
 	user, err := h.service.GetOrCreateUser(c.Request().Context(), magic_session.Email, magic_session.Pubkey)
 
+	if err != nil {
+		return err
+	}
+
 	//TODO: device creation and prekeys setup
 	//TODO: should receive windows and client fingerprints from payload
 	device, created, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent())
+
+	if err != nil {
+		return err
+	}
 
 	session_manager := c.Get("_session").(*scs.SessionManager)
 	session_manager.Put(c.Request().Context(), "user", SessionStore{

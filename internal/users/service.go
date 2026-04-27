@@ -4,6 +4,8 @@ import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db/sqlc"
 	"context"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Service interface {
@@ -22,11 +24,17 @@ func NewService(repo Repository) Service {
 }
 
 func (s *service) OnboardUser(ctx context.Context, name string, password string, image string, email string) (*sqlc.User, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, auth.ErrInternal
+	}
+	strHashedPassword := string(hashedPassword)
+
 	user, err := s.repo.OnboardUser(ctx, sqlc.OnboardUserParams{
 		Name:     &name,
 		Image:    &image,
 		Email:    email,
-		Password: &password,
+		Password: &strHashedPassword,
 	})
 
 	if err != nil {

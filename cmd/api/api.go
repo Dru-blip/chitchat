@@ -34,9 +34,10 @@ func NewServer(store *db.Store, mailer Mailer) (*Server, error) {
 
 	sessionManager.Lifetime = 360 * time.Hour
 	sessionManager.Cookie.Name = "chisession"
+	sessionManager.Cookie.Path = "/"
 	sessionManager.Cookie.HttpOnly = true
 	sessionManager.Cookie.Persist = true
-	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
+	sessionManager.Cookie.SameSite = http.SameSiteNoneMode
 	sessionManager.Cookie.Secure = false
 
 	api.Use(middleware.RequestLogger())
@@ -46,11 +47,12 @@ func NewServer(store *db.Store, mailer Mailer) (*Server, error) {
 		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowCredentials: true,
 	}))
+
 	api.Use(echo.WrapMiddleware(sessionManager.LoadAndSave))
+	api.Use(auth.NewSessionMiddleware(sessionManager))
+
 	api.Validator = utils.NewValidator()
 	api.HTTPErrorHandler = utils.GlobalErrorHandler
-
-	api.Use(auth.NewSessionMiddleware(sessionManager))
 
 	return &Server{
 		store:          store,
