@@ -10,7 +10,7 @@ import (
 
 type Service interface {
 	UpadateUser(ctx context.Context) (*sqlc.User, error)
-	OnboardUser(ctx context.Context, name, password, image, email string) (*sqlc.User, error)
+	OnboardUser(ctx context.Context, name, password, image, email string) (*sqlc.OnboardUserRow, error)
 }
 
 type service struct {
@@ -23,7 +23,7 @@ func NewService(repo Repository) Service {
 	}
 }
 
-func (s *service) OnboardUser(ctx context.Context, name string, password string, image string, email string) (*sqlc.User, error) {
+func (s *service) OnboardUser(ctx context.Context, name string, password string, image string, email string) (*sqlc.OnboardUserRow, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, auth.ErrInternal

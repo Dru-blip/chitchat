@@ -1,10 +1,10 @@
 -- name: GetUserByEmail :one
-SELECT * FROM users
+SELECT id,email,name,image,created_at,onboarding FROM users
 WHERE email = $1
 LIMIT 1;
 
 -- name: GetUserById :one
-SELECT * FROM users
+SELECT id,email,name,image,created_at,onboarding FROM users
 WHERE id = $1
 LIMIT 1;
 
@@ -14,16 +14,16 @@ INSERT INTO users (
 ) VALUES (
     $1, $2
 )
-RETURNING *;
+RETURNING id,email,name,image,created_at,onboarding;
 
 -- name: UpdateUser :one
 UPDATE users
-SET name = coalesce(sqlc.narg('name'),name), 
-image = coalesce(sqlc.narg('image'),image), 
-password = coalesce(sqlc.narg('password'),password), 
-onboarding = coalesce(sqlc.narg('onboarding'),onboarding) 
+SET name = coalesce(sqlc.narg('name'),name),
+image = coalesce(sqlc.narg('image'),image),
+password = coalesce(sqlc.narg('password'),password),
+onboarding = coalesce(sqlc.narg('onboarding'),onboarding)
 WHERE id = sqlc.arg('id')
-RETURNING *;
+RETURNING id,email,name,image,created_at,onboarding;
 
 
 -- name: OnboardUser :one
@@ -32,4 +32,4 @@ SET name=$2,
 image=coalesce(sqlc.narg('image'),image),
 password=$3,
 onboarding=False
-WHERE email=$1 RETURNING *;
+WHERE email=$1 RETURNING id,email,name,image,created_at,onboarding;

@@ -6,8 +6,8 @@ import (
 )
 
 type Repository interface {
-	UpdateUser(ctx context.Context, arg sqlc.UpdateUserParams) (sqlc.User, error)
-	OnboardUser(ctx context.Context, arg sqlc.OnboardUserParams) (sqlc.User, error)
+	UpdateUser(ctx context.Context, arg sqlc.UpdateUserParams) (sqlc.UpdateUserRow, error)
+	OnboardUser(ctx context.Context, arg sqlc.OnboardUserParams) (sqlc.OnboardUserRow, error)
 }
 
 type OnboardUserPayload struct {

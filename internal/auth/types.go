@@ -34,8 +34,8 @@ type Repository interface {
 	MarkMagicLinkAsUsed(ctx context.Context, token string) (sqlc.MagicLinkSession, error)
 	RevokeMagicLink(ctx context.Context, token string) error
 
-	CreateUser(ctx context.Context, arg sqlc.CreateUserParams) (sqlc.User, error)
-	GetUserByEmail(ctx context.Context, email string) (sqlc.User, error)
+	CreateUser(ctx context.Context, arg sqlc.CreateUserParams) (sqlc.CreateUserRow, error)
+	GetUserByEmail(ctx context.Context, email string) (sqlc.GetUserByEmailRow, error)
 
 	CreateDevice(ctx context.Context, arg sqlc.CreateDeviceParams) (sqlc.Device, error)
 	GetDeviceByPubkey(ctx context.Context, pubkey string) (sqlc.Device, error)

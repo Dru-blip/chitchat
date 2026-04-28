@@ -97,18 +97,35 @@ func (s *service) VerifyMagicLink(ctx context.Context, token string, ipAddress n
 }
 
 func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, error) {
-	user, err := s.repo.GetUserByEmail(ctx, email)
+	row, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			if user, err = s.repo.CreateUser(ctx, sqlc.CreateUserParams{
+			createdRow, err := s.repo.CreateUser(ctx, sqlc.CreateUserParams{
 				Email: email,
 				Ipkey: pubkey,
-			}); err != nil {
+			})
+			if err != nil {
 				return nil, err
+			}
+			user := sqlc.User{
+				ID:         createdRow.ID,
+				Email:      createdRow.Email,
+				Name:       createdRow.Name,
+				Image:      createdRow.Image,
+				CreatedAt:  createdRow.CreatedAt,
+				Onboarding: createdRow.Onboarding,
 			}
 			return &user, nil
 		}
 		return nil, err
+	}
+	user := sqlc.User{
+		ID:         row.ID,
+		Email:      row.Email,
+		Name:       row.Name,
+		Image:      row.Image,
+		CreatedAt:  row.CreatedAt,
+		Onboarding: row.Onboarding,
 	}
 	return &user, nil
 }
