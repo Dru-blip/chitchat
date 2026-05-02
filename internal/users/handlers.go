@@ -36,7 +36,13 @@ func (h *Handler) onboard(c *echo.Context) error {
 		return err
 	}
 
-	_, err := h.service.OnboardUser(c.Request().Context(), payload.Name, payload.Password, payload.Image, payload.Email)
+	userSession := c.Get("user").(*auth.SessionStore)
+
+	// if !ok {
+	// 	return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	// }
+
+	_, err := h.service.OnboardUser(c.Request().Context(), payload.Name, payload.Password, payload.Image, userSession.Email)
 	if err != nil {
 		return err
 	}

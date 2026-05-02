@@ -37,14 +37,14 @@ func NewServer(store *db.Store, mailer Mailer) (*Server, error) {
 	sessionManager.Cookie.Path = "/"
 	sessionManager.Cookie.HttpOnly = true
 	sessionManager.Cookie.Persist = true
-	sessionManager.Cookie.SameSite = http.SameSiteNoneMode
+	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
 	sessionManager.Cookie.Secure = false
 
 	api.Use(middleware.RequestLogger())
 	api.Use(middleware.Recover())
 	api.Use(middleware.RequestID())
 	api.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowCredentials: true,
 	}))
 

@@ -56,7 +56,7 @@ func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, ipAdd
 	})
 
 	//TODO: get client host from env
-	link := fmt.Sprintf("http://localhost:5173/verify-link?id=%s&token=%s", magic_link_session.ID, token)
+	link := fmt.Sprintf("http://localhost:3000/verify-link?id=%s&token=%s", magic_link_session.ID, token)
 
 	if err = s.mailer.SendMagicLink(email, link); err != nil {
 		return nil, ErrInternal

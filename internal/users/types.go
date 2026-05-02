@@ -12,7 +12,6 @@ type Repository interface {
 
 type OnboardUserPayload struct {
 	Name      string `json:"name" validate:"required"`
-	Email     string `json:"email" validate:"required,email"`
 	Pubkey    string `json:"pubkey" validate:"required"`
 	Password  string `json:"password" validate:"required"`
 	Image     string `json:"image"`
