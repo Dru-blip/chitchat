@@ -15,19 +15,23 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v5"
 	"github.com/pressly/goose/v3"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	redisContainer "github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
 type AuthTestSuite struct {
 	suite.Suite
-	ctx    context.Context
-	ctr    *postgres.PostgresContainer
-	store  *db.Store
-	app    *api.Server
-	mailer *mailer.MockMailer
+	ctx            context.Context
+	ctr            *postgres.PostgresContainer
+	redisContainer *redisContainer.RedisContainer
+	store          *db.Store
+	app            *api.Server
+	mailer         *mailer.MockMailer
+	rdb            *redis.Client
 }
 
 func (s *AuthTestSuite) SetupSuite() {
@@ -49,6 +53,10 @@ func (s *AuthTestSuite) SetupSuite() {
 
 	s.Require().NoError(err)
 
+	rdbContainer, err := redisContainer.Run(s.ctx, "redis:alpine")
+	s.Require().NoError(err)
+	s.redisContainer = rdbContainer
+
 	s.ctr = postgresContainer
 	conn, err := postgresContainer.ConnectionString(s.ctx)
 	s.Require().NoError(err)
@@ -68,7 +76,7 @@ func (s *AuthTestSuite) SetupSuite() {
 
 	s.mailer = new(mailer.MockMailer)
 
-	api, err := api.NewServer(s.store, s.mailer)
+	api, err := api.NewServer(s.store, s.mailer, s.rdb)
 	s.Require().NoError(err)
 
 	s.app = api
@@ -79,6 +87,7 @@ func (s *AuthTestSuite) SetupSuite() {
 func (s *AuthTestSuite) TearDownSuite() {
 	s.store.Db.Close()
 	s.Require().NoError(testcontainers.TerminateContainer(s.ctr))
+	s.Require().NoError(testcontainers.TerminateContainer(s.redisContainer))
 }
 
 func (s *AuthTestSuite) SetupTest() {
@@ -87,10 +96,6 @@ func (s *AuthTestSuite) SetupTest() {
 	s.mailer.ExpectedCalls = nil
 	s.Require().NoError(err)
 }
-
-// func (s *AuthTestSuite) TearDownTest() {
-// s.mailer.AssertExpectations(s.T())
-// }
 
 func (s *AuthTestSuite) do(method, path string, body any) *httptest.ResponseRecorder {
 	var reqBody *bytes.Buffer

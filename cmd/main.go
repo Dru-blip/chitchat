@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 func init() {
@@ -18,17 +19,25 @@ func init() {
 }
 
 func main() {
+
 	store, err := db.Connect(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer store.Db.Close()
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+	defer rdb.Close()
+
 	stmp_mailer, err := mailer.New()
 	if err != nil {
 		log.Fatal(err)
 	}
-	server, err := api.NewServer(store, stmp_mailer)
+	server, err := api.NewServer(store, stmp_mailer, rdb)
 	if err != nil {
 		log.Fatal(err)
 	}

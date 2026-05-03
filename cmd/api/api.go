@@ -10,10 +10,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alexedwards/scs/pgxstore"
+	"github.com/alexedwards/scs/goredisstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
+	"github.com/redis/go-redis/v9"
 )
 
 type Server struct {
@@ -21,16 +22,17 @@ type Server struct {
 	api            *echo.Echo
 	Mailer         Mailer
 	sessionManager *scs.SessionManager
+	rdb            *redis.Client
 }
 
-func NewServer(store *db.Store, mailer Mailer) (*Server, error) {
+func NewServer(store *db.Store, mailer Mailer, rdb *redis.Client) (*Server, error) {
 	gob.Register(auth.SessionStore{})
 
 	api := echo.New()
 
 	//TODO: Move session manager creation into a factory function
 	sessionManager := scs.New()
-	sessionManager.Store = pgxstore.New(store.Db)
+	sessionManager.Store = goredisstore.New(rdb)
 
 	sessionManager.Lifetime = 360 * time.Hour
 	sessionManager.Cookie.Name = "chisession"
