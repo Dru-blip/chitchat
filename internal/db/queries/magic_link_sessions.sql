@@ -18,7 +18,7 @@ ORDER BY created_at DESC;
 
 -- name: GetPendingMagicLinkSession :one
 SELECT * FROM magic_link_sessions
-WHERE email = $1 
+WHERE email = $1
   AND status = 'pending'
   AND expires_at > CURRENT_TIMESTAMP
 LIMIT 1;
@@ -55,5 +55,14 @@ WHERE expires_at < CURRENT_TIMESTAMP;
 -- name: ExpireOldMagicLinks :exec
 UPDATE magic_link_sessions
 SET status = 'expired'
-WHERE expires_at < CURRENT_TIMESTAMP 
+WHERE expires_at < CURRENT_TIMESTAMP
   AND status = 'pending';
+
+
+-- name: UpdateMagicLinkSession :one
+UPDATE magic_link_sessions
+SET token = $2,
+    attempts = $3,
+    expires_at = $4
+WHERE id = $1
+RETURNING *;

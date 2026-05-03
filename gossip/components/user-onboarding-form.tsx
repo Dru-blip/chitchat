@@ -10,13 +10,14 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { ErrorResponse } from "@/types";
+import { apiFetch, cn } from "@/lib/utils";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import * as z from "zod";
 import { getSerializedIdentityKeys } from "@/lib/local-stores";
 import { useRouter } from "next/navigation";
+import { ErrorBanner } from "./error-banner";
+import { toast } from "sonner";
 
 const onboardingSchema = z.object({
   name: z
@@ -44,7 +45,7 @@ export function UserOnboardingForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
-  const [done, setDone] = useState(false);
+  const [serverError, setServerError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<OnboardingFormValues>({
@@ -57,48 +58,35 @@ export function UserOnboardingForm({
   });
 
   const onSubmit = async (values: OnboardingFormValues) => {
-    const formData = new FormData();
-    formData.append("name", values.name);
-    formData.append("password", values.password);
-    if (values.image) {
-      formData.append("image", values.image);
-    }
+    setServerError("");
 
     const idKeys = await getSerializedIdentityKeys();
-    const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "users/onboard", {
+    const { error } = await apiFetch<
+      void,
+      { message: string; details?: Record<keyof OnboardingFormValues, string> }
+    >("users/onboard", {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
       body: JSON.stringify({ ...values, pubkey: idKeys.pubKey }),
     });
 
-    const data = await res.json();
+    if (error) {
+      setServerError(error.message);
 
-    if (!res.ok) {
-      if (data.details) {
-        for (const [field, message] of Object.entries(data.details)) {
-          form.setError(field as keyof OnboardingFormValues, {
-            message: message as string,
-          });
+      if (error.details) {
+        for (const [field, message] of Object.entries(error.details)) {
+          form.setError(field as keyof OnboardingFormValues, { message });
         }
-        return;
       }
-      throw {
-        code: data.code,
-        message: data.message,
-        details: data.details,
-      } satisfies ErrorResponse;
+      return;
     }
 
-    setDone(true);
-
+    toast.success("Successfully onboarded");
     router.push("/chat");
   };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <ErrorBanner message={serverError} />
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <FieldGroup>
           {/* Name */}

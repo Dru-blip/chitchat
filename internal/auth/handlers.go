@@ -2,6 +2,7 @@ package auth
 
 import (
 	"chitchat/internal/utils"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/netip"
@@ -44,8 +45,10 @@ func (h *Handler) sendMagicLink(c *echo.Context) error {
 	addr := getClientIP(c)
 	magic_link_session, err := h.service.SendMagicLink(c.Request().Context(), payload.Email, payload.Pubkey, addr, c.Request().UserAgent())
 	if err != nil {
-		h.logger.Error("failed to send magic link", "error", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to send magic link")
+		if errors.Is(err, ErrTooManyAttempts) {
+			return c.JSON(http.StatusTooManyRequests, magic_link_session)
+		}
+		return err
 	}
 
 	return c.JSON(http.StatusOK, magic_link_session)

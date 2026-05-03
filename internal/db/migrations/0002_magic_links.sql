@@ -7,6 +7,8 @@ DROP TRIGGER IF EXISTS update_otp_sessions_updated_at ON otp_sessions;
 
 DROP TYPE IF EXISTS magic_link_status;
 -- Create enum type for status
+
+DROP TYPE IF EXISTS magic_link_status;
 CREATE TYPE magic_link_status AS ENUM ('pending', 'used', 'expired', 'revoked');
 
 -- Create magic_link_sessions table
@@ -17,6 +19,7 @@ CREATE TABLE IF NOT EXISTS magic_link_sessions(
     pubkey TEXT NOT NULL,
     ip_address INET NOT NULL,
     user_agent TEXT,
+    attempts SMALLINT NOT NULL DEFAULT 1,
     status magic_link_status NOT NULL DEFAULT 'pending',
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

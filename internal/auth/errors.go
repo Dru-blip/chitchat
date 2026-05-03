@@ -24,4 +24,6 @@ var (
 	ErrNoSession      = echo.NewHTTPError(http.StatusUnauthorized, "no active session")
 
 	ErrUserNotFound = echo.NewHTTPError(http.StatusNotFound, "user not found")
+
+	ErrTooManyAttempts = echo.NewHTTPError(http.StatusTooManyRequests, "too many attempts")
 )

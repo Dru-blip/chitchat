@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"time"
 
@@ -13,19 +14,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type Service interface {
-	SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error)
-	VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (*sqlc.MagicLinkSession, error)
-	GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, bool, error)
-	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error)
-}
-
-type SessionInfo struct {
-	SessionID string
-	UserID    uuid.UUID
-	Email     string
-	ExpiresAt time.Time
-}
+const (
+	MaxAttempts = 5
+	BaseSeconds = 60
+	CapSeconds  = 1800
+)
 
 type service struct {
 	repo   Repository
@@ -41,30 +34,62 @@ func NewService(repo Repository, mailer Mailer) Service {
 
 func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
 	//TODO: Check for existing magic links
+	session, err := s.repo.GetPendingMagicLinkSession(ctx, email)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return s.createFreshMagicLinkSession(ctx, email, pubkey, ipAddress, userAgent)
+		}
+		return nil, ErrInternal
+	}
+
+	if session.Attempts >= MaxAttempts {
+		return &SendMagicLinkResponse{
+			Message:    "Max attempts reached",
+			Email:      email,
+			RetryAfter: time.Time{},
+		}, ErrTooManyAttempts
+	}
+
+	cooldown := s.getMagicLinkCooldown(int(session.Attempts))
+	retryAfter := s.getRetryAfter(cooldown, session.UpdatedAt)
+
+	if time.Now().Before(retryAfter) {
+		return &SendMagicLinkResponse{
+			Message:    "Please wait before requesting another magic link",
+			Email:      email,
+			RetryAfter: retryAfter,
+		}, ErrTooManyAttempts
+	}
+
 	token, err := utils.GenerateMagicLinkToken()
 	if err != nil {
 		return nil, ErrInternal
 	}
 
-	magic_link_session, err := s.repo.CreateMagicLinkSession(ctx, sqlc.CreateMagicLinkSessionParams{
-		Email:     email,
-		Pubkey:    pubkey,
-		IpAddress: ipAddress,
-		UserAgent: &userAgent,
-		Token:     utils.SHA256(token),
+	session, err = s.repo.UpdateMagicLinkSession(ctx, sqlc.UpdateMagicLinkSessionParams{
+		ID:        session.ID,
 		ExpiresAt: time.Now().Add(time.Minute * 15),
+		Token:     token,
+		Attempts:  session.Attempts + 1,
 	})
 
-	//TODO: get client host from env
-	link := fmt.Sprintf("http://localhost:3000/verify-link?id=%s&token=%s", magic_link_session.ID, token)
+	if err != nil {
+		return nil, ErrInternal
+	}
+
+	link := fmt.Sprintf("http://localhost:3000/verify-link?id=%s&token=%s", session.ID, token)
 
 	if err = s.mailer.SendMagicLink(email, link); err != nil {
 		return nil, ErrInternal
 	}
 
+	nextCooldown := s.getMagicLinkCooldown(int(session.Attempts))
+	retryAfter = s.getRetryAfter(nextCooldown, session.UpdatedAt)
+
 	return &SendMagicLinkResponse{
-		Email:   email,
-		Message: "successfully sent magic link",
+		Email:      email,
+		Message:    "Successfully resent magic link",
+		RetryAfter: retryAfter,
 	}, nil
 }
 
@@ -149,4 +174,51 @@ func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubk
 		return nil, err
 	}
 	return &device, nil
+}
+
+func (s *service) getMagicLinkCooldown(attempts int) time.Duration {
+	seconds := math.Min(
+		BaseSeconds*math.Pow(2, float64(attempts-1)),
+		CapSeconds,
+	)
+
+	return time.Duration(seconds) * time.Second
+}
+
+func (s *service) getRetryAfter(cooldown time.Duration, updatedAt time.Time) time.Time {
+	return updatedAt.Add(cooldown)
+}
+
+func (s *service) createFreshMagicLinkSession(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
+	token, err := utils.GenerateMagicLinkToken()
+	if err != nil {
+		return nil, ErrInternal
+	}
+
+	session, err := s.repo.CreateMagicLinkSession(ctx, sqlc.CreateMagicLinkSessionParams{
+		Email:     email,
+		Pubkey:    pubkey,
+		IpAddress: ipAddress,
+		UserAgent: &userAgent,
+		Token:     utils.SHA256(token),
+		ExpiresAt: time.Now().Add(time.Minute * 15),
+	})
+
+	if err != nil {
+		return nil, ErrInternal
+	}
+
+	link := fmt.Sprintf("http://localhost:3000/verify-link?id=%s&token=%s", session.ID, token)
+	if err = s.mailer.SendMagicLink(email, link); err != nil {
+		return nil, ErrInternal
+	}
+
+	cooldown := s.getMagicLinkCooldown(int(session.Attempts))
+	retryAfter := s.getRetryAfter(cooldown, session.CreatedAt)
+
+	return &SendMagicLinkResponse{
+		Email:      email,
+		Message:    "Successfully sent magic link",
+		RetryAfter: retryAfter,
+	}, nil
 }

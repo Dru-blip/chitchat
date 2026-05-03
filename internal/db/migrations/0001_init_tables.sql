@@ -37,6 +37,7 @@ CREATE INDEX idx_otp_expires_at ON otp_sessions(expires_at);
 CREATE INDEX idx_otp_pubkey ON otp_sessions(pubkey);
 
 
+DROP TYPE IF EXISTS client_type;
 CREATE TYPE  client_type AS ENUM ('mobile', 'web', 'desktop');
 
 CREATE TABLE IF NOT EXISTS devices(
@@ -50,7 +51,7 @@ CREATE TABLE IF NOT EXISTS devices(
     last_seen TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -58,16 +59,16 @@ CREATE INDEX idx_devices_user_id ON devices(user_id);
 CREATE INDEX idx_devices_pubkey ON devices(pubkey);
 
 CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY, 
+    id TEXT PRIMARY KEY,
     user_id UUID NOT NULL,
     device_id UUID NOT NULL,
-    
+
     ip_address INET NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+
     is_revoked BOOLEAN DEFAULT FALSE,
 
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
