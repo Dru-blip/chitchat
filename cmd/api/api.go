@@ -61,16 +61,17 @@ func NewServer(store *db.Store, mailer Mailer, rdb *redis.Client) (*Server, erro
 		api:            api,
 		Mailer:         mailer,
 		sessionManager: sessionManager,
+		rdb:            rdb,
 	}, nil
 }
 
 func (s *Server) RegisterRoutes() {
 	authService := auth.NewService(s.store.Queries, s.Mailer)
-	authHandler := auth.NewHandler(authService, s.api.Logger)
+	authHandler := auth.NewHandler(authService, s.api.Logger, s.rdb)
 	authHandler.Register(s.api)
 
 	usersService := users.NewService(s.store.Queries)
-	usersHandler := users.NewHandler(usersService, s.api.Logger)
+	usersHandler := users.NewHandler(usersService, s.api.Logger, s.rdb)
 	usersHandler.Register(s.api)
 
 	keyService := keys.NewService(s.store.Queries)

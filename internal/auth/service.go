@@ -16,8 +16,8 @@ import (
 type Service interface {
 	SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error)
 	VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (*sqlc.MagicLinkSession, error)
-	GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, error)
-	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, bool, error)
+	GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, bool, error)
+	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error)
 }
 
 type SessionInfo struct {
@@ -96,7 +96,7 @@ func (s *service) VerifyMagicLink(ctx context.Context, token string, ipAddress n
 	return session, nil
 }
 
-func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, error) {
+func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, bool, error) {
 	row, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -105,7 +105,7 @@ func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*s
 				Ipkey: pubkey,
 			})
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 			user := sqlc.User{
 				ID:         createdRow.ID,
@@ -115,9 +115,9 @@ func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*s
 				CreatedAt:  createdRow.CreatedAt,
 				Onboarding: createdRow.Onboarding,
 			}
-			return &user, nil
+			return &user, true, nil
 		}
-		return nil, err
+		return nil, false, err
 	}
 	user := sqlc.User{
 		ID:         row.ID,
@@ -127,10 +127,10 @@ func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*s
 		CreatedAt:  row.CreatedAt,
 		Onboarding: row.Onboarding,
 	}
-	return &user, nil
+	return &user, false, nil
 }
 
-func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, bool, error) {
+func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error) {
 	device, err := s.repo.GetDeviceByPubkey(ctx, pubkey)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -142,11 +142,11 @@ func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubk
 				Client:    "web",
 				UserAgent: &user_agent,
 			}); err != nil {
-				return nil, false, err
+				return nil, err
 			}
-			return &device, true, nil
+			return &device, nil
 		}
-		return nil, false, err
+		return nil, err
 	}
-	return &device, false, nil
+	return &device, nil
 }

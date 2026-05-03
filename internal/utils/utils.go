@@ -9,6 +9,10 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net/http"
+	"time"
+
+	"github.com/labstack/echo/v5"
 )
 
 func GenerateOTPCode(length int) (string, error) {
@@ -84,4 +88,15 @@ func GenerateMagicLinkToken() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func WriteCookie(c *echo.Context, name string, value string, expiry time.Time) {
+	cookie := new(http.Cookie)
+	cookie.Name = name
+	cookie.Value = value
+	cookie.Expires = expiry
+	cookie.Path = "/"
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.HttpOnly = true
+	c.SetCookie(cookie)
 }

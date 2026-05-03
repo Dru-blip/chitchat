@@ -2,21 +2,26 @@ package users
 
 import (
 	"chitchat/internal/auth"
+	"chitchat/internal/utils"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 type Handler struct {
-	service Service
-	logger  *slog.Logger
+	service     Service
+	logger      *slog.Logger
+	redisClient *redis.Client
 }
 
-func NewHandler(service Service, logger *slog.Logger) *Handler {
+func NewHandler(service Service, logger *slog.Logger, redisClient *redis.Client) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		service:     service,
+		logger:      logger,
+		redisClient: redisClient,
 	}
 }
 
@@ -36,14 +41,15 @@ func (h *Handler) onboard(c *echo.Context) error {
 		return err
 	}
 
-	userSession := c.Get("user").(*auth.SessionStore)
-
-	// if !ok {
-	// 	return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
-	// }
+	userSession := c.Get("user").(auth.SessionStore)
 
 	_, err := h.service.OnboardUser(c.Request().Context(), payload.Name, payload.Password, payload.Image, userSession.Email)
 	if err != nil {
+		return err
+	}
+
+	utils.WriteCookie(c, "onboarding", "", time.Now().AddDate(0, 0, -2))
+	if err := auth.RemoveOnboardingToken(c.Request().Context(), h.redisClient, userSession.UserId); err != nil {
 		return err
 	}
 

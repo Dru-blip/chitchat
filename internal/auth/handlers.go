@@ -1,23 +1,28 @@
 package auth
 
 import (
+	"chitchat/internal/utils"
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/labstack/echo/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 type Handler struct {
-	service Service
-	logger  *slog.Logger
+	service     Service
+	logger      *slog.Logger
+	redisClient *redis.Client
 }
 
-func NewHandler(service Service, logger *slog.Logger) *Handler {
+func NewHandler(service Service, logger *slog.Logger, redisClient *redis.Client) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		service:     service,
+		logger:      logger,
+		redisClient: redisClient,
 	}
 }
 
@@ -63,7 +68,7 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 		return err
 	}
 
-	user, err := h.service.GetOrCreateUser(c.Request().Context(), magic_session.Email, magic_session.Pubkey)
+	user, created, err := h.service.GetOrCreateUser(c.Request().Context(), magic_session.Email, magic_session.Pubkey)
 
 	if err != nil {
 		return err
@@ -71,7 +76,7 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 
 	//TODO: device creation and prekeys setup
 	//TODO: should receive windows and client fingerprints from payload
-	device, created, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent())
+	device, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent())
 
 	if err != nil {
 		return err
@@ -84,6 +89,15 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 		UserId:   user.ID.String(),
 		DeviceId: device.ID.String(),
 	})
+
+	if created {
+		onboardingToken, err := SetOnboardingToken(c.Request().Context(), h.redisClient, user)
+		if err != nil {
+			return err
+		}
+
+		utils.WriteCookie(c, "onboarding", onboardingToken, time.Now().AddDate(1, 0, 0))
+	}
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"userId":   user.ID.String(),

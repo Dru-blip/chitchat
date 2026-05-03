@@ -15,6 +15,8 @@ import { ErrorResponse } from "@/types";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import * as z from "zod";
+import { getSerializedIdentityKeys } from "@/lib/local-stores";
+import { useRouter } from "next/navigation";
 
 const onboardingSchema = z.object({
   name: z
@@ -41,6 +43,7 @@ export function UserOnboardingForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const router = useRouter();
   const [done, setDone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,19 +64,19 @@ export function UserOnboardingForm({
       formData.append("image", values.image);
     }
 
-    const res = await fetch(
-      process.env.NEXT_PUBLIC_API_URL + "users/onboarding",
-      {
-        method: "POST",
-        credentials: "include",
-        body: formData,
+    const idKeys = await getSerializedIdentityKeys();
+    const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "users/onboard", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      credentials: "include",
+      body: JSON.stringify({ ...values, pubkey: idKeys.pubKey }),
+    });
 
     const data = await res.json();
 
     if (!res.ok) {
-      // Map API field errors back into RHF if present
       if (data.details) {
         for (const [field, message] of Object.entries(data.details)) {
           form.setError(field as keyof OnboardingFormValues, {
@@ -90,15 +93,9 @@ export function UserOnboardingForm({
     }
 
     setDone(true);
-  };
 
-  if (done) {
-    return (
-      <div className={cn("flex flex-col gap-6", className)} {...props}>
-        <span>You're all set! Welcome aboard.</span>
-      </div>
-    );
-  }
+    router.push("/chat");
+  };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
