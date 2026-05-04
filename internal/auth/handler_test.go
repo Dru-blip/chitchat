@@ -53,9 +53,20 @@ func (s *AuthTestSuite) SetupSuite() {
 
 	s.Require().NoError(err)
 
-	rdbContainer, err := redisContainer.Run(s.ctx, "redis:alpine")
+	rdbContainer, err := redisContainer.Run(s.ctx, "redis:alpine", testcontainers.WithExposedPorts("6379/tcp"))
 	s.Require().NoError(err)
 	s.redisContainer = rdbContainer
+
+	endpoint, err := rdbContainer.Endpoint(s.ctx, "")
+	s.Require().NoError(err)
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     endpoint,
+		Password: "",
+		DB:       0,
+	})
+
+	s.rdb = rdb
 
 	s.ctr = postgresContainer
 	conn, err := postgresContainer.ConnectionString(s.ctx)
@@ -86,15 +97,20 @@ func (s *AuthTestSuite) SetupSuite() {
 
 func (s *AuthTestSuite) TearDownSuite() {
 	s.store.Db.Close()
+	s.Require().NoError(s.rdb.Close())
 	s.Require().NoError(testcontainers.TerminateContainer(s.ctr))
 	s.Require().NoError(testcontainers.TerminateContainer(s.redisContainer))
 }
 
 func (s *AuthTestSuite) SetupTest() {
-	_, err := s.store.Db.Exec(s.ctx, "TRUNCATE TABLE users,devices,sessions RESTART IDENTITY CASCADE;")
+	_, err := s.store.Db.Exec(s.ctx, "TRUNCATE TABLE users,devices,magic_link_sessions RESTART IDENTITY CASCADE;")
+	s.Require().NoError(err)
+
+	_, err = s.rdb.FlushAll(s.ctx).Result()
+	s.Require().NoError(err)
+
 	s.mailer.Calls = nil
 	s.mailer.ExpectedCalls = nil
-	s.Require().NoError(err)
 }
 
 func (s *AuthTestSuite) do(method, path string, body any) *httptest.ResponseRecorder {
@@ -121,14 +137,13 @@ func (s *AuthTestSuite) decodeBody(rec *httptest.ResponseRecorder, v any) {
 }
 
 func (s *AuthTestSuite) TestSendMagicLink_InvalidEmail() {
-	s.mailer.On("SendMagicLink", "druvabiduduri7@gmail.com", mock.Anything).Return(nil)
-
 	rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
 		"email":  "pikachu@",
 		"pubkey": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZKD32iSCQ0d",
 	})
 
 	s.Require().Equal(http.StatusUnprocessableEntity, rec.Code)
+	s.mailer.AssertNotCalled(s.T(), "SendMagicLink", mock.Anything, mock.Anything)
 }
 
 func (s *AuthTestSuite) TestSendMagicLink_Success() {
@@ -140,6 +155,31 @@ func (s *AuthTestSuite) TestSendMagicLink_Success() {
 	})
 
 	s.Require().Equal(http.StatusOK, rec.Code)
+	s.mailer.AssertExpectations(s.T())
+}
+
+func (s *AuthTestSuite) TestSendMagicLink_cooldown() {
+	s.mailer.On("SendMagicLink", "pikachu@gmail.com", mock.Anything).Return(nil)
+
+	s.Run("send magic link", func() {
+		rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
+			"email":  "pikachu@gmail.com",
+			"pubkey": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZKD32iSCQ0d",
+		})
+
+		s.Require().Equal(http.StatusOK, rec.Code)
+	})
+
+	s.Run("cooldown", func() {
+		rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
+			"email":  "pikachu@gmail.com",
+			"pubkey": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZKD32iSCQ0d",
+		})
+
+		s.Require().Equal(http.StatusTooManyRequests, rec.Code)
+	})
+
+	s.mailer.AssertNumberOfCalls(s.T(), "SendMagicLink", 1)
 }
 
 func TestAuthSuite(t *testing.T) {
