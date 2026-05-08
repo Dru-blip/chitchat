@@ -372,6 +372,53 @@ func (s *AuthTestSuite) TestVerifyMagicLink_MarksTokenAsUsed() {
 	s.Require().Equal("used", status)
 }
 
+func (s *AuthTestSuite) TestVerifyMagicLink_InvalidToken_Returns401() {
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{
+		"token": "this-token-was-never-issued",
+	})
+	s.Require().Equal(http.StatusUnauthorized, rec.Code)
+}
+
+func (s *AuthTestSuite) TestVerifyMagicLink_ExpiredToken_Returns401() {
+	email := "koga@fuchsia.com"
+	pubkey := "pubkey-koga"
+	rawToken := "expired-token-koga"
+
+	s.seedExpiredMagicLinkSession(email, pubkey, rawToken)
+
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{
+		"token": rawToken,
+	})
+	s.Require().Equal(http.StatusUnauthorized, rec.Code)
+}
+
+func (s *AuthTestSuite) TestVerifyMagicLink_AlreadyUsedToken_Returns401() {
+	email := "blaine@cinnabar.com"
+	pubkey := "pubkey-blaine"
+	rawToken := "used-token-blaine"
+
+	s.seedUsedMagicLinkSession(email, pubkey, rawToken)
+
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{
+		"token": rawToken,
+	})
+	s.Require().Equal(http.StatusUnauthorized, rec.Code)
+}
+
+func (s *AuthTestSuite) TestVerifyMagicLink_ReplayAttack_SecondUseRejected() {
+	email := "giovanni@viridian.com"
+	pubkey := "pubkey-giovanni"
+	rawToken := "token-giovanni"
+
+	s.seedMagicLinkSession(email, pubkey, rawToken)
+
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{"token": rawToken})
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	rec = s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{"token": rawToken})
+	s.Require().Equal(http.StatusUnauthorized, rec.Code)
+}
+
 func TestAuthSuite(t *testing.T) {
 	suite.Run(t, new(AuthTestSuite))
 }
