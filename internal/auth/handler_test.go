@@ -3,6 +3,7 @@ package auth_test
 import (
 	"bytes"
 	"chitchat/cmd/api"
+	"chitchat/internal/auth"
 	"chitchat/internal/db"
 	"chitchat/internal/mailer"
 	"context"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v5"
@@ -136,6 +138,7 @@ func (s *AuthTestSuite) decodeBody(rec *httptest.ResponseRecorder, v any) {
 	s.Require().NoError(json.NewDecoder(rec.Body).Decode(v))
 }
 
+// Validations
 func (s *AuthTestSuite) TestSendMagicLink_InvalidEmail() {
 	rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
 		"email":  "pikachu@",
@@ -146,19 +149,30 @@ func (s *AuthTestSuite) TestSendMagicLink_InvalidEmail() {
 	s.mailer.AssertNotCalled(s.T(), "SendMagicLink", mock.Anything, mock.Anything)
 }
 
-func (s *AuthTestSuite) TestSendMagicLink_Success() {
-	s.mailer.On("SendMagicLink", "pikachu@gmail.com", mock.Anything).Return(nil)
-
+func (s *AuthTestSuite) TestSendMagicLink_MissingEmail() {
 	rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
-		"email":  "pikachu@gmail.com",
-		"pubkey": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZKD32iSCQ0d",
+		"pubkey": "somevalidpubkey",
 	})
 
-	s.Require().Equal(http.StatusOK, rec.Code)
-	s.mailer.AssertExpectations(s.T())
+	s.Require().Equal(http.StatusUnprocessableEntity, rec.Code)
+	s.mailer.AssertNotCalled(s.T(), "SendMagicLink", mock.Anything, mock.Anything)
 }
 
-func (s *AuthTestSuite) TestSendMagicLink_cooldown() {
+func (s *AuthTestSuite) TestSendMagicLink_MissingPubkey() {
+	rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
+		"email": "pikachu@gmail.com",
+	})
+
+	s.Require().Equal(http.StatusUnprocessableEntity, rec.Code)
+	s.mailer.AssertNotCalled(s.T(), "SendMagicLink", mock.Anything, mock.Anything)
+}
+
+func (s *AuthTestSuite) TestSendMagicLink_EmptyBody() {
+	rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{})
+	s.Require().Equal(http.StatusUnprocessableEntity, rec.Code)
+}
+
+func (s *AuthTestSuite) TestSendMagicLink_SuccessAndResendCoolDown() {
 	s.mailer.On("SendMagicLink", "pikachu@gmail.com", mock.Anything).Return(nil)
 
 	s.Run("send magic link", func() {
@@ -168,18 +182,50 @@ func (s *AuthTestSuite) TestSendMagicLink_cooldown() {
 		})
 
 		s.Require().Equal(http.StatusOK, rec.Code)
+		s.mailer.AssertNumberOfCalls(s.T(), "SendMagicLink", 1)
+		s.mailer.AssertExpectations(s.T())
+
+		var res auth.SendMagicLinkResponse
+		s.decodeBody(rec, &res)
+
+		s.Require().Equal(res.Email, "pikachu@gmail.com")
+		s.Require().Greater(res.RetryAfter, time.Now())
 	})
 
-	s.Run("cooldown", func() {
+	s.mailer.Calls = nil
+	s.mailer.ExpectedCalls = nil
+
+	s.Run("resend cool down", func() {
 		rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
 			"email":  "pikachu@gmail.com",
 			"pubkey": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZKD32iSCQ0d",
 		})
 
 		s.Require().Equal(http.StatusTooManyRequests, rec.Code)
+		var res auth.SendMagicLinkResponse
+		s.decodeBody(rec, &res)
+
+		s.Require().Greater(res.RetryAfter, time.Now())
+		s.mailer.AssertNotCalled(s.T(), "SendMagicLink", mock.Anything, mock.Anything)
 	})
 
-	s.mailer.AssertNumberOfCalls(s.T(), "SendMagicLink", 1)
+}
+
+func (s *AuthTestSuite) TestSendMagicLink_DifferentEmails_Independent() {
+	s.mailer.On("SendMagicLink", mock.Anything, mock.Anything).Return(nil)
+
+	rec1 := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
+		"email":  "ash@pallet.com",
+		"pubkey": "pubkey1",
+	})
+	rec2 := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
+		"email":  "misty@cerulean.com",
+		"pubkey": "pubkey2",
+	})
+
+	s.Require().Equal(http.StatusOK, rec1.Code)
+	s.Require().Equal(http.StatusOK, rec2.Code)
+	s.mailer.AssertNumberOfCalls(s.T(), "SendMagicLink", 2)
 }
 
 func TestAuthSuite(t *testing.T) {

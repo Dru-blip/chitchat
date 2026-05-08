@@ -19,7 +19,6 @@ func init() {
 }
 
 func main() {
-
 	store, err := db.Connect(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
