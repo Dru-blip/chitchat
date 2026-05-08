@@ -6,6 +6,7 @@ import (
 	"chitchat/internal/auth"
 	"chitchat/internal/db"
 	"chitchat/internal/mailer"
+	"chitchat/internal/utils"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -138,6 +139,50 @@ func (s *AuthTestSuite) decodeBody(rec *httptest.ResponseRecorder, v any) {
 	s.Require().NoError(json.NewDecoder(rec.Body).Decode(v))
 }
 
+func (s *AuthTestSuite) seedMagicLinkSession(email, pubkey, rawToken string) {
+	s.T().Helper()
+	_, err := s.store.Db.Exec(s.ctx, `
+		INSERT INTO magic_link_sessions
+			(email, pubkey, token, ip_address, expires_at, attempts, status)
+		VALUES
+			($1, $2, $3, '127.0.0.1', NOW() + INTERVAL '15 minutes', 1, 'pending')
+	`, email, pubkey, utils.SHA256(rawToken))
+	s.Require().NoError(err)
+}
+
+func (s *AuthTestSuite) seedMaxAttemptsSession(email, pubkey string) {
+	s.T().Helper()
+	_, err := s.store.Db.Exec(s.ctx, `
+		INSERT INTO magic_link_sessions
+			(email, pubkey, token, ip_address, expires_at, attempts, status)
+		VALUES
+			($1, $2, 'exhaused-token-hash', '127.0.0.1', NOW() + INTERVAL '15 minutes', $3, 'pending')
+	`, email, pubkey, auth.MaxAttempts)
+	s.Require().NoError(err)
+}
+
+func (s *AuthTestSuite) seedExpiredMagicLinkSession(email, pubkey, rawToken string) {
+	s.T().Helper()
+	_, err := s.store.Db.Exec(s.ctx, `
+		INSERT INTO magic_link_sessions
+			(email, pubkey, token, ip_address, expires_at, attempts, status)
+		VALUES
+			($1, $2, $3, '127.0.0.1', NOW() - INTERVAL '1 hour', 1, 'pending')
+	`, email, pubkey, utils.SHA256(rawToken))
+	s.Require().NoError(err)
+}
+
+func (s *AuthTestSuite) seedUsedMagicLinkSession(email, pubkey, rawToken string) {
+	s.T().Helper()
+	_, err := s.store.Db.Exec(s.ctx, `
+		INSERT INTO magic_link_sessions
+			(email, pubkey, token, ip_address, expires_at, attempts, status)
+		VALUES
+			($1, $2, $3, '127.0.0.1', NOW() + INTERVAL '15 minutes', 1, 'used')
+	`, email, pubkey, utils.SHA256(rawToken))
+	s.Require().NoError(err)
+}
+
 // Validations
 func (s *AuthTestSuite) TestSendMagicLink_InvalidEmail() {
 	rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
@@ -226,6 +271,105 @@ func (s *AuthTestSuite) TestSendMagicLink_DifferentEmails_Independent() {
 	s.Require().Equal(http.StatusOK, rec1.Code)
 	s.Require().Equal(http.StatusOK, rec2.Code)
 	s.mailer.AssertNumberOfCalls(s.T(), "SendMagicLink", 2)
+}
+
+func (s *AuthTestSuite) TestSendMagicLink_MaxAttempts_Returns429WithEmptyRetryAfter() {
+	email := "pikachu@gmail.com"
+	pubkey := "somevalidpubkey"
+
+	s.seedMaxAttemptsSession(email, pubkey)
+
+	rec := s.do(http.MethodPost, "/auth/send-magic-link", map[string]any{
+		"email":  email,
+		"pubkey": pubkey,
+	})
+
+	s.Require().Equal(http.StatusTooManyRequests, rec.Code)
+
+	var res auth.SendMagicLinkResponse
+	s.decodeBody(rec, &res)
+	s.Require().True(res.RetryAfter.IsZero())
+
+	s.mailer.AssertNotCalled(s.T(), "SendMagicLink", mock.Anything, mock.Anything)
+}
+
+func (s *AuthTestSuite) TestVerifyMagicLink_MissingToken() {
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{})
+	s.Require().Equal(http.StatusUnprocessableEntity, rec.Code)
+}
+
+func (s *AuthTestSuite) TestVerifyMagicLink_NewUser_CreatesUserAndDevice() {
+	email := "ash@pallet.com"
+	pubkey := "example"
+	rawToken := "fresh-token"
+
+	s.seedMagicLinkSession(email, pubkey, rawToken)
+
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{
+		"token": rawToken,
+	})
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	var res map[string]any
+	s.decodeBody(rec, &res)
+
+	s.Require().True(res["onboard"].(bool))
+	s.Require().True(res["redirect"].(bool))
+	s.Require().NotEmpty(res["userId"])
+
+	var userCount int
+	err := s.store.Db.QueryRow(s.ctx, "SELECT COUNT(*) FROM users WHERE email=$1", email).Scan(&userCount)
+	s.Require().NoError(err)
+	s.Require().Equal(1, userCount)
+
+	var deviceCount int
+	err = s.store.Db.QueryRow(s.ctx, "SELECT COUNT(*) FROM devices WHERE pubkey=$1", pubkey).Scan(&deviceCount)
+	s.Require().NoError(err)
+	s.Require().Equal(1, deviceCount)
+}
+
+func (s *AuthTestSuite) TestVerifyMagicLink_ExistingUser_SkipsOnboarding() {
+	email := "misty@cerulean.com"
+	pubkey := "pubkey-misty"
+	rawToken := "token-misty"
+
+	_, err := s.store.Db.Exec(s.ctx,
+		"INSERT INTO users (email, ipkey, onboarding) VALUES ($1, $2, $3)", email, pubkey, false)
+	s.Require().NoError(err)
+
+	s.seedMagicLinkSession(email, pubkey, rawToken)
+
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{
+		"token": rawToken,
+	})
+
+	// TODO: test should check for device creation
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	var res map[string]any
+	s.decodeBody(rec, &res)
+	s.Require().False(res["onboard"].(bool))
+}
+
+func (s *AuthTestSuite) TestVerifyMagicLink_MarksTokenAsUsed() {
+	email := "thanos@gmail.com"
+	pubkey := "pubkey"
+	rawToken := "token"
+
+	s.seedMagicLinkSession(email, pubkey, rawToken)
+
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{
+		"token": rawToken,
+	})
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	var status string
+	err := s.store.Db.QueryRow(s.ctx,
+		"SELECT status FROM magic_link_sessions WHERE token=$1",
+		utils.SHA256(rawToken),
+	).Scan(&status)
+	s.Require().NoError(err)
+	s.Require().Equal("used", status)
 }
 
 func TestAuthSuite(t *testing.T) {
