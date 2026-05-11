@@ -22,5 +22,4 @@ type UploadPayload struct {
 type Repository interface {
 	GetKeybundle(ctx context.Context, userID uuid.UUID) (sqlc.GetKeybundleRow, error)
 	InsertPreKeys(ctx context.Context, arg sqlc.InsertPreKeysParams) (int64, error)
-	// DeletePrekey(ctx context.Context, arg sqlc.DeletePrekeyParams) (sqlc.DevicePrekey, error)
 }

@@ -26,8 +26,6 @@ func (h *Handler) Register(e *echo.Echo) {
 
 	keys.POST("/", h.UploadPrekeys)
 	keys.POST("/:userId", h.GetkeyBundle)
-	// keys.DELETE("/", h.ExtrackPrekey)
-
 }
 
 func (h *Handler) UploadPrekeys(c *echo.Context) error {
