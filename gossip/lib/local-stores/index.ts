@@ -5,6 +5,9 @@ import { Store } from "./store";
 export const identityStore = new CryptoKeyStore("identity_keys");
 export const signedPrekeyStore = new CryptoKeyStore("signed_prekeys");
 export const oneTimePrekeyStore = new CryptoKeyStore("one_time_prekeys");
+export const registrationStore = new Store<number>("registration", {
+  dbName: "KeyVault",
+});
 
 const counterStore = new Store<number>("id_counters");
 

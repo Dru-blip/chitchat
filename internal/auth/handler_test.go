@@ -106,7 +106,7 @@ func (s *AuthTestSuite) TearDownSuite() {
 }
 
 func (s *AuthTestSuite) SetupTest() {
-	_, err := s.store.Db.Exec(s.ctx, "TRUNCATE TABLE users,devices,magic_link_sessions RESTART IDENTITY CASCADE;")
+	_, err := s.store.Db.Exec(s.ctx, "TRUNCATE TABLE users,devices,magic_link_sessions,device_signed_prekeys,device_prekeys RESTART IDENTITY CASCADE;")
 	s.Require().NoError(err)
 
 	_, err = s.rdb.FlushAll(s.ctx).Result()
@@ -117,6 +117,10 @@ func (s *AuthTestSuite) SetupTest() {
 }
 
 func (s *AuthTestSuite) do(method, path string, body any) *httptest.ResponseRecorder {
+	return s.doWithCookies(method, path, body)
+}
+
+func (s *AuthTestSuite) doWithCookies(method, path string, body any, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	var reqBody *bytes.Buffer
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -128,6 +132,9 @@ func (s *AuthTestSuite) do(method, path string, body any) *httptest.ResponseReco
 
 	req := httptest.NewRequest(method, path, reqBody)
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
 
 	rec := httptest.NewRecorder()
 	s.app.Echo().ServeHTTP(rec, req)
@@ -181,6 +188,28 @@ func (s *AuthTestSuite) seedUsedMagicLinkSession(email, pubkey, rawToken string)
 			($1, $2, $3, '127.0.0.1', NOW() + INTERVAL '15 minutes', 1, 'used')
 	`, email, pubkey, utils.SHA256(rawToken))
 	s.Require().NoError(err)
+}
+
+func (s *AuthTestSuite) loginAndReturnSession(email, pubkey, rawToken string) (*http.Cookie, string) {
+	s.T().Helper()
+
+	s.seedMagicLinkSession(email, pubkey, rawToken)
+	rec := s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{
+		"token": rawToken,
+	})
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	var res map[string]any
+	s.decodeBody(rec, &res)
+
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "chisession" {
+			return cookie, res["userId"].(string)
+		}
+	}
+
+	s.FailNow("session cookie not found")
+	return nil, ""
 }
 
 // Validations
@@ -417,6 +446,122 @@ func (s *AuthTestSuite) TestVerifyMagicLink_ReplayAttack_SecondUseRejected() {
 
 	rec = s.do(http.MethodPost, "/auth/verify-magic-link", map[string]any{"token": rawToken})
 	s.Require().Equal(http.StatusUnauthorized, rec.Code)
+}
+
+func (s *AuthTestSuite) TestMeRequiresAuth() {
+	rec := s.do(http.MethodGet, "/auth/me", nil)
+	s.Require().Equal(http.StatusUnauthorized, rec.Code)
+}
+
+func (s *AuthTestSuite) TestMeReturnsSessionWhenAuthenticated() {
+	sessionCookie, userID := s.loginAndReturnSession("janine@fuchsia.com", "device-pubkey-janine", "token-janine")
+
+	rec := s.doWithCookies(http.MethodGet, "/auth/me", nil, sessionCookie)
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	var body auth.SessionStore
+	s.decodeBody(rec, &body)
+	s.Require().Equal(userID, body.UserId)
+	s.Require().Equal("janine@fuchsia.com", body.Email)
+}
+
+func (s *AuthTestSuite) TestUploadPrekeys_RequiresAuth() {
+	rec := s.do(http.MethodPost, "/keys/", map[string]any{
+		"prekeyIds": []int{1},
+		"prekeys":   []string{"prekey-1"},
+		"signedPreKey": map[string]any{
+			"id":        1,
+			"key":       "signed-key",
+			"signature": "signature",
+		},
+	})
+
+	s.Require().Equal(http.StatusUnauthorized, rec.Code)
+}
+
+func (s *AuthTestSuite) TestUploadPrekeys_StoresKeysAndAllowsDuplicateRetry() {
+	sessionCookie, _ := s.loginAndReturnSession("brock@pewter.com", "device-pubkey", "token-brock")
+
+	payload := map[string]any{
+		"prekeyIds": []int{1, 2},
+		"prekeys":   []string{"prekey-1", "prekey-2"},
+		"signedPreKey": map[string]any{
+			"id":        1,
+			"key":       "signed-key",
+			"signature": "signature",
+		},
+	}
+
+	rec := s.doWithCookies(http.MethodPost, "/keys/", payload, sessionCookie)
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	rec = s.doWithCookies(http.MethodPost, "/keys/", payload, sessionCookie)
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	var signedCount int
+	err := s.store.Db.QueryRow(s.ctx, "SELECT COUNT(*) FROM device_signed_prekeys WHERE public_key=$1", "signed-key").Scan(&signedCount)
+	s.Require().NoError(err)
+	s.Require().Equal(1, signedCount)
+
+	var prekeyCount int
+	err = s.store.Db.QueryRow(s.ctx, "SELECT COUNT(*) FROM device_prekeys WHERE public_key IN ($1, $2)", "prekey-1", "prekey-2").Scan(&prekeyCount)
+	s.Require().NoError(err)
+	s.Require().Equal(2, prekeyCount)
+}
+
+func (s *AuthTestSuite) TestUploadPrekeys_RejectsMismatchedPrekeyIdsAndKeys() {
+	sessionCookie, _ := s.loginAndReturnSession("erika@celadon.com", "device-pubkey-erika", "token-erika")
+
+	rec := s.doWithCookies(http.MethodPost, "/keys/", map[string]any{
+		"prekeyIds": []int{1, 2},
+		"prekeys":   []string{"prekey-1"},
+		"signedPreKey": map[string]any{
+			"id":        1,
+			"key":       "signed-key",
+			"signature": "signature",
+		},
+	}, sessionCookie)
+
+	s.Require().Equal(http.StatusBadRequest, rec.Code)
+}
+
+func (s *AuthTestSuite) TestGetKeyBundle_ConsumesOnePrekey() {
+	sessionCookie, userID := s.loginAndReturnSession("sabrina@saffron.com", "device-pubkey-sabrina", "token-sabrina")
+
+	upload := map[string]any{
+		"prekeyIds": []int{10, 11},
+		"prekeys":   []string{"prekey-10", "prekey-11"},
+		"signedPreKey": map[string]any{
+			"id":        7,
+			"key":       "signed-key-7",
+			"signature": "signature-7",
+		},
+	}
+
+	rec := s.doWithCookies(http.MethodPost, "/keys/", upload, sessionCookie)
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	rec = s.doWithCookies(http.MethodPost, "/keys/"+userID, nil, sessionCookie)
+	s.Require().Equal(http.StatusOK, rec.Code)
+
+	var remaining int
+	err := s.store.Db.QueryRow(s.ctx, "SELECT COUNT(*) FROM device_prekeys").Scan(&remaining)
+	s.Require().NoError(err)
+	s.Require().Equal(1, remaining)
+
+	var body struct {
+		Bundle struct {
+			SignedKeyID  int32  `json:"SignedKeyID"`
+			SignedPubkey string `json:"SignedPubkey"`
+			PrekeyID     int32  `json:"PrekeyID"`
+			Prekey       string `json:"Prekey"`
+		} `json:"bundle"`
+	}
+	s.decodeBody(rec, &body)
+	s.Require().Equal(int32(7), body.Bundle.SignedKeyID)
+	s.Require().Equal("signed-key-7", body.Bundle.SignedPubkey)
+	s.Require().Contains([]int32{10, 11}, body.Bundle.PrekeyID)
+	s.Require().Contains([]string{"prekey-10", "prekey-11"}, body.Bundle.Prekey)
 }
 
 func TestAuthSuite(t *testing.T) {
