@@ -81,7 +81,7 @@ export function UserOnboardingForm({
     }
 
     toast.success("Successfully onboarded");
-    router.push("/chat");
+    router.push("/chats");
   };
 
   return (

@@ -35,7 +35,7 @@ function VerifyLinkContent() {
       if (data.onboard) {
         router.push("/onboarding");
       } else {
-        router.push("/chat");
+        router.push("/app/chat");
       }
     };
 

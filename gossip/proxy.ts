@@ -16,7 +16,7 @@ export default async function proxy(req: NextRequest) {
   }
 
   if (sessionCookie && publicRoutes.includes(path)) {
-    return NextResponse.redirect(new URL("/chat", req.nextUrl));
+    return NextResponse.redirect(new URL("/chats", req.nextUrl));
   }
 
   return NextResponse.next();
