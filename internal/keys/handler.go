@@ -36,6 +36,9 @@ func (h *Handler) UploadPrekeys(c *echo.Context) error {
 	if err := c.Validate(&payload); err != nil {
 		return err
 	}
+	if len(payload.PrekeyIds) != len(payload.Prekeys) {
+		return echo.NewHTTPError(http.StatusBadRequest, "prekeyIds and prekeys must have the same length")
+	}
 	user := c.Get("user").(auth.SessionStore)
 
 	err := h.service.UploadPrekeys(

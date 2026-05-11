@@ -6,15 +6,16 @@ import {
   identityStore,
   nextPersistentId,
   oneTimePrekeyStore,
+  registrationStore,
   signedPrekeyStore,
 } from "./local-stores";
 
 export const initializeRegistrationId = async (): Promise<void> => {
-  const existing = await identityStore.get("registrationId");
+  const existing = await registrationStore.get("registrationId");
   if (existing) return;
 
   const registrationId = KeyHelper.generateRegistrationId();
-  await identityStore.set("registrationId", registrationId as any);
+  await registrationStore.set("registrationId", registrationId);
 };
 
 export const initializeIdentityKey = async (): Promise<void> => {

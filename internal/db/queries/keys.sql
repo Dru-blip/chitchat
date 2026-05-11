@@ -7,6 +7,9 @@ WITH signed_key AS (
             @signedkey::text,
             @signature::text
         )
+    ON CONFLICT (device_id, key_id) DO UPDATE
+    SET public_key = EXCLUDED.public_key,
+        signature = EXCLUDED.signature
     RETURNING device_id,
         key_id,
         public_key
@@ -21,6 +24,8 @@ prekeys AS (
             SELECT unnest(@prekeyIds::int []) as key_id,
                 unnest(@prekeys::text []) as public_key
         ) as k
+    ON CONFLICT (device_id, key_id) DO UPDATE
+    SET public_key = EXCLUDED.public_key
     RETURNING device_id
 )
 SELECT count(*)
@@ -34,31 +39,38 @@ WITH user_devices AS (
     WHERE user_id = $1
 ),
 signed_keys AS (
-    SELECT sp.key_id,
+    SELECT sp.device_id,
+        sp.key_id,
         sp.public_key,
         sp.signature
     FROM device_signed_prekeys sp
-        LEFT JOIN user_devices ud ON sp.device_id = ud.id
+    WHERE sp.device_id IN (
+            SELECT id
+            FROM user_devices
+        )
+    ORDER BY sp.created_at DESC
     LIMIT 1
-), consumed_prekey AS (
+),
+consumed_prekey AS (
     DELETE FROM device_prekeys
-    WHERE id = (
-            SELECT pk.device_id
+    WHERE (device_id, key_id) = (
+            SELECT pk.device_id,
+                pk.key_id
             FROM device_prekeys pk
-            WHERE pk.device_id IN (
-                    SELECT id
-                    FROM user_devices
-                )
+                JOIN signed_keys sk ON sk.device_id = pk.device_id
+            ORDER BY pk.created_at ASC,
+                pk.key_id ASC
             LIMIT 1
         )
-    RETURNING key_id,
+    RETURNING device_id,
+        key_id,
         public_key
 )
-SELECT ud.id as device_id,
+SELECT pk.device_id,
     sk.key_id as signed_key_id,
     sk.public_key as signed_pubkey,
+    sk.signature as signed_signature,
     pk.key_id as prekey_id,
     pk.public_key as prekey
-FROM user_devices as ud
-    JOIN signed_keys sk ON sk.device_id = ud.id
-    JOIN consumed_prekey pk ON pk.device_id = ud.id;
+FROM consumed_prekey pk
+    JOIN signed_keys sk ON sk.device_id = pk.device_id;

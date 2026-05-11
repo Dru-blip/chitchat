@@ -9,8 +9,8 @@ export function PreKeyInitializer() {
       .then(() => {
         console.log("keys initialized and loaded successfully");
       })
-      .catch(() => {
-        console.error("failed to initialize keys");
+      .catch((error) => {
+        console.error("failed to initialize keys", error);
       });
   }, []);
   return null;
