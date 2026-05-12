@@ -39,3 +39,4 @@ internal/db/sqlc/
 *.db
 
 r.txt
+.aider*
