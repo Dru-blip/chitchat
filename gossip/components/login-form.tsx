@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { getSerializedIdentityKeys } from "@/lib/local-stores";
+import { registrationIdStore } from "@/lib/local-stores/registration-id";
 import { apiFetch, cn } from "@/lib/utils";
 import { Loading01FreeIcons } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -53,12 +54,19 @@ export function LoginForm({
     setLoading(true);
 
     const keys = await getSerializedIdentityKeys();
+    const registrationId = await registrationIdStore.get("main");
+    if (!registrationId) {
+      setServerError("Encryption keys not initialised. Please refresh the page.");
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await apiFetch<
       { message: string; retryAfter: string; email: string },
       { message: string } & { retryAfter: string }
     >("auth/send-magic-link", {
       method: "POST",
-      body: JSON.stringify({ email, pubkey: keys.pubKey }),
+      body: JSON.stringify({ email, pubkey: keys.pubKey, registrationId }),
     });
 
     if (error) {

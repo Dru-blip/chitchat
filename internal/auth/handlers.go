@@ -44,7 +44,7 @@ func (h *Handler) sendMagicLink(c *echo.Context) error {
 		return err
 	}
 	addr := getClientIP(c)
-	magic_link_session, err := h.service.SendMagicLink(c.Request().Context(), payload.Email, payload.Pubkey, addr, c.Request().UserAgent())
+	magic_link_session, err := h.service.SendMagicLink(c.Request().Context(), payload.Email, payload.Pubkey, payload.RegistrationID, addr, c.Request().UserAgent())
 	if err != nil {
 		if errors.Is(err, ErrTooManyAttempts) {
 			return c.JSON(http.StatusTooManyRequests, magic_link_session)

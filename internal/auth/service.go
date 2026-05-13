@@ -32,12 +32,12 @@ func NewService(repo Repository, mailer Mailer) Service {
 	}
 }
 
-func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
+func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, registrationId int32, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
 	//TODO: Check for existing magic links
 	session, err := s.repo.GetPendingMagicLinkSession(ctx, email)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return s.createFreshMagicLinkSession(ctx, email, pubkey, ipAddress, userAgent)
+			return s.createFreshMagicLinkSession(ctx, email, pubkey, registrationId, ipAddress, userAgent)
 		}
 		return nil, ErrInternal
 	}
@@ -189,7 +189,7 @@ func (s *service) getRetryAfter(cooldown time.Duration, updatedAt time.Time) tim
 	return updatedAt.Add(cooldown)
 }
 
-func (s *service) createFreshMagicLinkSession(ctx context.Context, email, pubkey string, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
+func (s *service) createFreshMagicLinkSession(ctx context.Context, email, pubkey string, registrationId int32, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
 	token, err := utils.GenerateMagicLinkToken()
 	if err != nil {
 		return nil, ErrInternal
