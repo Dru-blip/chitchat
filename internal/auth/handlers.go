@@ -80,7 +80,7 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 
 	//TODO: device creation and prekeys setup
 	//TODO: should receive windows and client fingerprints from payload
-	device, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent())
+	device, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent(), magic_session.RegistrationID)
 
 	if err != nil {
 		return err

@@ -1,8 +1,8 @@
 -- name: CreateDevice :one
 INSERT INTO devices (
-    pubkey, name, os, client, user_agent, user_id
+    pubkey, name, os, client,registration_id, user_agent, user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6,$7
 )
 RETURNING *;
 

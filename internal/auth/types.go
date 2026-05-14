@@ -11,7 +11,7 @@ import (
 
 type SendMagicLinkPayload struct {
 	Email          string `json:"email" validate:"required,email"`
-	Pubkey           string `json:"pubkey" validate:"required"`
+	Pubkey         string `json:"pubkey" validate:"required"`
 	RegistrationID int32  `json:"registrationId" validate:"required,gt=0"`
 }
 
@@ -35,7 +35,7 @@ type Service interface {
 	SendMagicLink(ctx context.Context, email, pubkey string, registrationId int32, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error)
 	VerifyMagicLink(ctx context.Context, token string, ipAddress netip.Addr, userAgent string) (*sqlc.MagicLinkSession, error)
 	GetOrCreateUser(ctx context.Context, email, pubkey string) (*sqlc.User, bool, error)
-	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error)
+	GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string, registrationId int32) (*sqlc.Device, error)
 }
 
 type SessionInfo struct {

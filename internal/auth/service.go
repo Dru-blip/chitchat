@@ -155,17 +155,18 @@ func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*s
 	return &user, false, nil
 }
 
-func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string) (*sqlc.Device, error) {
+func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string, registrationId int32) (*sqlc.Device, error) {
 	device, err := s.repo.GetDeviceByPubkey(ctx, pubkey)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			if device, err = s.repo.CreateDevice(ctx, sqlc.CreateDeviceParams{
-				Pubkey:    pubkey,
-				UserID:    user_id,
-				Name:      "unknown",
-				Os:        os,
-				Client:    "web",
-				UserAgent: &user_agent,
+				Pubkey:         pubkey,
+				UserID:         user_id,
+				Name:           "unknown",
+				RegistrationID: registrationId,
+				Os:             os,
+				Client:         "web",
+				UserAgent:      &user_agent,
 			}); err != nil {
 				return nil, err
 			}
@@ -196,12 +197,13 @@ func (s *service) createFreshMagicLinkSession(ctx context.Context, email, pubkey
 	}
 
 	session, err := s.repo.CreateMagicLinkSession(ctx, sqlc.CreateMagicLinkSessionParams{
-		Email:     email,
-		Pubkey:    pubkey,
-		IpAddress: ipAddress,
-		UserAgent: &userAgent,
-		Token:     utils.SHA256(token),
-		ExpiresAt: time.Now().Add(time.Minute * 15),
+		Email:          email,
+		Pubkey:         pubkey,
+		IpAddress:      ipAddress,
+		RegistrationID: registrationId,
+		UserAgent:      &userAgent,
+		Token:          utils.SHA256(token),
+		ExpiresAt:      time.Now().Add(time.Minute * 15),
 	})
 
 	if err != nil {
