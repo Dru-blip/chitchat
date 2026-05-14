@@ -40,3 +40,5 @@ internal/db/sqlc/
 
 r.txt
 .aider*
+
+.crush

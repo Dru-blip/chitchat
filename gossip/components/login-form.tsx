@@ -3,8 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { getSerializedIdentityKeys } from "@/lib/local-stores";
-import { registrationIdStore } from "@/lib/local-stores/registration-id";
+import { getSerializedIdentityKeys, registrationStore } from "@/lib/local-stores";
 import { apiFetch, cn } from "@/lib/utils";
 import { Loading01FreeIcons } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -54,7 +53,7 @@ export function LoginForm({
     setLoading(true);
 
     const keys = await getSerializedIdentityKeys();
-    const registrationId = await registrationIdStore.get("main");
+    const registrationId = await registrationStore.get("registrationId");
     if (!registrationId) {
       setServerError("Encryption keys not initialised. Please refresh the page.");
       setLoading(false);
