@@ -4,6 +4,7 @@ import (
 	"chitchat/cmd/api"
 	"chitchat/internal/db"
 	"chitchat/internal/mailer"
+	"chitchat/internal/mqttclient"
 	"log"
 	"os"
 
@@ -26,8 +27,8 @@ func main() {
 	defer store.Db.Close()
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
+		Addr:     os.Getenv("REDIS_HOST"),
+		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
 	defer rdb.Close()
@@ -36,7 +37,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server, err := api.NewServer(store, stmp_mailer, rdb)
+
+	mqttClient, err := mqttclient.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server, err := api.NewApp(store, stmp_mailer, rdb, mqttClient)
 	if err != nil {
 		log.Fatal(err)
 	}

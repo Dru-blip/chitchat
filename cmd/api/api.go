@@ -7,12 +7,7 @@ import (
 	"chitchat/internal/users"
 	"chitchat/internal/utils"
 	"encoding/gob"
-	"log"
-	"net/http"
-	"os"
-	"time"
 
-	"github.com/alexedwards/scs/goredisstore"
 	"github.com/alexedwards/scs/v2"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/labstack/echo/v5"
@@ -20,7 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type Server struct {
+type App struct {
 	store          *db.Store
 	api            *echo.Echo
 	Mailer         Mailer
@@ -29,26 +24,44 @@ type Server struct {
 	mqttClient     mqtt.Client
 }
 
-func NewServer(store *db.Store, mailer Mailer, rdb *redis.Client) (*Server, error) {
-	mqttClient, err := MQTT()
-	if err != nil {
-		return nil, err
-	}
+func NewApp(store *db.Store, mailer Mailer, rdb *redis.Client, mqttClient mqtt.Client) (*App, error) {
 	gob.Register(auth.SessionStore{})
+	sessionManager := auth.NewSessionManager(rdb)
+	api := SetupEcho(sessionManager)
+	return &App{
+		store:          store,
+		api:            api,
+		Mailer:         mailer,
+		sessionManager: sessionManager,
+		rdb:            rdb,
+		mqttClient:     mqttClient,
+	}, nil
+}
 
+func (s *App) RegisterRoutes() {
+	authService := auth.NewService(s.store.Queries, s.Mailer)
+	authHandler := auth.NewHandler(authService, s.api.Logger, s.rdb)
+	authHandler.Register(s.api)
+
+	usersService := users.NewService(s.store.Queries)
+	usersHandler := users.NewHandler(usersService, s.api.Logger, s.rdb)
+	usersHandler.Register(s.api)
+
+	keyService := keys.NewService(s.store.Queries)
+	keyHandler := keys.NewHandler(keyService, s.api.Logger)
+	keyHandler.Register(s.api)
+}
+
+func (s *App) Start() {
+	s.api.Start(":5050")
+}
+
+func (s *App) Echo() *echo.Echo {
+	return s.api
+}
+
+func SetupEcho(sessionManager *scs.SessionManager) *echo.Echo {
 	api := echo.New()
-
-	//TODO: Move session manager creation into a factory function
-	sessionManager := scs.New()
-	sessionManager.Store = goredisstore.New(rdb)
-
-	sessionManager.Lifetime = 360 * time.Hour
-	sessionManager.Cookie.Name = "chisession"
-	sessionManager.Cookie.Path = "/"
-	sessionManager.Cookie.HttpOnly = true
-	sessionManager.Cookie.Persist = true
-	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
-	sessionManager.Cookie.Secure = false
 
 	api.Use(middleware.RequestLogger())
 	api.Use(middleware.Recover())
@@ -64,48 +77,5 @@ func NewServer(store *db.Store, mailer Mailer, rdb *redis.Client) (*Server, erro
 	api.Validator = utils.NewValidator()
 	api.HTTPErrorHandler = utils.GlobalErrorHandler
 
-	return &Server{
-		store:          store,
-		api:            api,
-		Mailer:         mailer,
-		sessionManager: sessionManager,
-		rdb:            rdb,
-		mqttClient:     mqttClient,
-	}, nil
-}
-
-func (s *Server) RegisterRoutes() {
-	authService := auth.NewService(s.store.Queries, s.Mailer)
-	authHandler := auth.NewHandler(authService, s.api.Logger, s.rdb)
-	authHandler.Register(s.api)
-
-	usersService := users.NewService(s.store.Queries)
-	usersHandler := users.NewHandler(usersService, s.api.Logger, s.rdb)
-	usersHandler.Register(s.api)
-
-	keyService := keys.NewService(s.store.Queries)
-	keyHandler := keys.NewHandler(keyService, s.api.Logger)
-	keyHandler.Register(s.api)
-}
-
-func (s *Server) Start() {
-	s.api.Start(":5050")
-}
-
-func (s *Server) Echo() *echo.Echo {
-	return s.api
-}
-
-func MQTT() (mqtt.Client, error) {
-	mqtt.DEBUG = log.New(os.Stdout, "", 0)
-	mqtt.ERROR = log.New(os.Stdout, "", 0)
-	opts := mqtt.NewClientOptions().AddBroker("tcp://broker.emqx.io:1883")
-	opts.SetClientID(os.Getenv("EMQX_CLIENTID")).SetPassword(os.Getenv("EMQX_CLIENT_PASSWORD"))
-
-	opts.SetKeepAlive(60 * time.Second)
-	c := mqtt.NewClient(opts)
-	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		return nil, token.Error()
-	}
-	return c, nil
+	return api
 }
