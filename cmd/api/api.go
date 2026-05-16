@@ -7,11 +7,14 @@ import (
 	"chitchat/internal/users"
 	"chitchat/internal/utils"
 	"encoding/gob"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/alexedwards/scs/goredisstore"
 	"github.com/alexedwards/scs/v2"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/redis/go-redis/v9"
@@ -23,9 +26,14 @@ type Server struct {
 	Mailer         Mailer
 	sessionManager *scs.SessionManager
 	rdb            *redis.Client
+	mqttClient     mqtt.Client
 }
 
 func NewServer(store *db.Store, mailer Mailer, rdb *redis.Client) (*Server, error) {
+	mqttClient, err := MQTT()
+	if err != nil {
+		return nil, err
+	}
 	gob.Register(auth.SessionStore{})
 
 	api := echo.New()
@@ -62,6 +70,7 @@ func NewServer(store *db.Store, mailer Mailer, rdb *redis.Client) (*Server, erro
 		Mailer:         mailer,
 		sessionManager: sessionManager,
 		rdb:            rdb,
+		mqttClient:     mqttClient,
 	}, nil
 }
 
@@ -85,4 +94,18 @@ func (s *Server) Start() {
 
 func (s *Server) Echo() *echo.Echo {
 	return s.api
+}
+
+func MQTT() (mqtt.Client, error) {
+	mqtt.DEBUG = log.New(os.Stdout, "", 0)
+	mqtt.ERROR = log.New(os.Stdout, "", 0)
+	opts := mqtt.NewClientOptions().AddBroker("tcp://broker.emqx.io:1883")
+	opts.SetClientID(os.Getenv("EMQX_CLIENTID")).SetPassword(os.Getenv("EMQX_CLIENT_PASSWORD"))
+
+	opts.SetKeepAlive(60 * time.Second)
+	c := mqtt.NewClient(opts)
+	if token := c.Connect(); token.Wait() && token.Error() != nil {
+		return nil, token.Error()
+	}
+	return c, nil
 }

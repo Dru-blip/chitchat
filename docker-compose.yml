@@ -18,6 +18,27 @@ services:
       - insightdata:/insightdata
     restart: unless-stopped
 
+  emqx:
+    image: emqx:latest
+    container_name: emqx
+    restart: unless-stopped
+    ports:
+      - "1883:1883" # MQTT Standard
+      - "8083:8083" # MQTT over WebSocket
+      - "8084:8084" # MQTT over WSS
+      - "8883:8883" # MQTT over SSL
+      - "18083:18083" # Web Dashboard
+    environment:
+      EMQX_NAME: emqx
+      EMQX_ALLOW_ANONYMOUS: "false"
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: "admin"
+
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+
 volumes:
   redis-data:
   insightdata:
+  emqx_data:
+  emqx_log:
