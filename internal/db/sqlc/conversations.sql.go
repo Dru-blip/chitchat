@@ -7,162 +7,55 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
 
-const addParticipant = `-- name: AddParticipant :exec
-INSERT INTO conversation_participants (
-    conversation_id, user_id
-) VALUES (
-    $1, $2
-)
-`
-
-type AddParticipantParams struct {
-	ConversationID uuid.UUID
-	UserID         uuid.UUID
-}
-
-func (q *Queries) AddParticipant(ctx context.Context, arg AddParticipantParams) error {
-	_, err := q.db.Exec(ctx, addParticipant, arg.ConversationID, arg.UserID)
-	return err
-}
-
 const createConversation = `-- name: CreateConversation :one
-INSERT INTO conversations (
-    kind, name, created_by
-) VALUES (
-    $1, $2, $3
+WITH new_conversation AS(
+    INSERT INTO conversations(initiator_id, type)
+    VALUES ($1::uuid, $2::text)
+    RETURNING id, type, name, initiator_id, created_at, updated_at
+),
+conversation_participants AS(
+    INSERT INTO conversation_participants(conversation_id, user_id)
+    SELECT conversation_id, user_id
+    FROM unnest(ARRAY[new_conversation.id, new_conversation.id]) AS conversation_id, unnest(ARRAY[$1::uuid, $3::uuid]) AS user_id
+    RETURNING conversation_id, user_id, joined_at, left_at, last_read
 )
-RETURNING id, kind, name, created_by, created_at, updated_at
+SELECT new_conversation.id, new_conversation.type, new_conversation.name, new_conversation.initiator_id, new_conversation.created_at, new_conversation.updated_at, jsonb_agg(to_jsonb(conversation_participants.*)) AS participants
+FROM new_conversation
+JOIN conversation_participants ON new_conversation.id = conversation_participants.conversation_id
 `
 
 type CreateConversationParams struct {
-	Kind      string
-	Name      *string
-	CreatedBy uuid.UUID
+	InitiatorID   uuid.UUID
+	Type          string
+	ParticipantID uuid.UUID
 }
 
-func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversationParams) (Conversation, error) {
-	row := q.db.QueryRow(ctx, createConversation, arg.Kind, arg.Name, arg.CreatedBy)
-	var i Conversation
+type CreateConversationRow struct {
+	ID           uuid.UUID
+	Type         ConversationTypes
+	Name         *string
+	InitiatorID  uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Participants []byte
+}
+
+func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversationParams) (CreateConversationRow, error) {
+	row := q.db.QueryRow(ctx, createConversation, arg.InitiatorID, arg.Type, arg.ParticipantID)
+	var i CreateConversationRow
 	err := row.Scan(
 		&i.ID,
-		&i.Kind,
+		&i.Type,
 		&i.Name,
-		&i.CreatedBy,
+		&i.InitiatorID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Participants,
 	)
 	return i, err
-}
-
-const getConversationById = `-- name: GetConversationById :one
-SELECT id, kind, name, created_by, created_at, updated_at FROM conversations
-WHERE id = $1
-LIMIT 1
-`
-
-func (q *Queries) GetConversationById(ctx context.Context, id uuid.UUID) (Conversation, error) {
-	row := q.db.QueryRow(ctx, getConversationById, id)
-	var i Conversation
-	err := row.Scan(
-		&i.ID,
-		&i.Kind,
-		&i.Name,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getConversationsByUserId = `-- name: GetConversationsByUserId :many
-SELECT c.id, c.kind, c.name, c.created_by, c.created_at, c.updated_at FROM conversations c
-JOIN conversation_participants cp ON cp.conversation_id = c.id
-WHERE cp.user_id = $1
-ORDER BY c.updated_at DESC
-`
-
-func (q *Queries) GetConversationsByUserId(ctx context.Context, userID uuid.UUID) ([]Conversation, error) {
-	rows, err := q.db.Query(ctx, getConversationsByUserId, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Conversation
-	for rows.Next() {
-		var i Conversation
-		if err := rows.Scan(
-			&i.ID,
-			&i.Kind,
-			&i.Name,
-			&i.CreatedBy,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getParticipants = `-- name: GetParticipants :many
-SELECT u.id, u.email, u.name, u.image
-FROM conversation_participants cp
-JOIN users u ON u.id = cp.user_id
-WHERE cp.conversation_id = $1
-ORDER BY cp.joined_at ASC
-`
-
-type GetParticipantsRow struct {
-	ID    uuid.UUID
-	Email string
-	Name  *string
-	Image *string
-}
-
-func (q *Queries) GetParticipants(ctx context.Context, conversationID uuid.UUID) ([]GetParticipantsRow, error) {
-	rows, err := q.db.Query(ctx, getParticipants, conversationID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetParticipantsRow
-	for rows.Next() {
-		var i GetParticipantsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.Name,
-			&i.Image,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const removeParticipant = `-- name: RemoveParticipant :exec
-DELETE FROM conversation_participants
-WHERE conversation_id = $1 AND user_id = $2
-`
-
-type RemoveParticipantParams struct {
-	ConversationID uuid.UUID
-	UserID         uuid.UUID
-}
-
-func (q *Queries) RemoveParticipant(ctx context.Context, arg RemoveParticipantParams) error {
-	_, err := q.db.Exec(ctx, removeParticipant, arg.ConversationID, arg.UserID)
-	return err
 }

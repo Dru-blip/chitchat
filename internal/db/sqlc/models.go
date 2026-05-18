@@ -56,6 +56,48 @@ func (ns NullClientType) Value() (driver.Value, error) {
 	return string(ns.ClientType), nil
 }
 
+type ConversationTypes string
+
+const (
+	ConversationTypesGroup ConversationTypes = "group"
+	ConversationTypesDm    ConversationTypes = "dm"
+)
+
+func (e *ConversationTypes) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ConversationTypes(s)
+	case string:
+		*e = ConversationTypes(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ConversationTypes: %T", src)
+	}
+	return nil
+}
+
+type NullConversationTypes struct {
+	ConversationTypes ConversationTypes
+	Valid             bool // Valid is true if ConversationTypes is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullConversationTypes) Scan(value interface{}) error {
+	if value == nil {
+		ns.ConversationTypes, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ConversationTypes.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullConversationTypes) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ConversationTypes), nil
+}
+
 type MagicLinkStatus string
 
 const (
@@ -100,66 +142,21 @@ func (ns NullMagicLinkStatus) Value() (driver.Value, error) {
 	return string(ns.MagicLinkStatus), nil
 }
 
-type RecordKind string
-
-const (
-	RecordKindMessage            RecordKind = "message"
-	RecordKindReaction           RecordKind = "reaction"
-	RecordKindFile               RecordKind = "file"
-	RecordKindSystem             RecordKind = "system"
-	RecordKindMemberJoin         RecordKind = "member_join"
-	RecordKindMemberLeave        RecordKind = "member_leave"
-	RecordKindConversationRename RecordKind = "conversation_rename"
-)
-
-func (e *RecordKind) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = RecordKind(s)
-	case string:
-		*e = RecordKind(s)
-	default:
-		return fmt.Errorf("unsupported scan type for RecordKind: %T", src)
-	}
-	return nil
-}
-
-type NullRecordKind struct {
-	RecordKind RecordKind
-	Valid      bool // Valid is true if RecordKind is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullRecordKind) Scan(value interface{}) error {
-	if value == nil {
-		ns.RecordKind, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.RecordKind.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullRecordKind) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.RecordKind), nil
-}
-
 type Conversation struct {
-	ID        uuid.UUID
-	Kind      string
-	Name      *string
-	CreatedBy uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID          uuid.UUID
+	Type        ConversationTypes
+	Name        *string
+	InitiatorID uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type ConversationParticipant struct {
 	ConversationID uuid.UUID
 	UserID         uuid.UUID
 	JoinedAt       time.Time
+	LeftAt         *time.Time
+	LastRead       time.Time
 }
 
 type Device struct {
@@ -206,15 +203,23 @@ type MagicLinkSession struct {
 	UpdatedAt      time.Time
 }
 
-type Record struct {
+type Message struct {
+	ID             uuid.UUID
+	ConversationID uuid.UUID
+	SenderUserID   uuid.UUID
+	SenderDeviceID uuid.UUID
+	SequenceID     int32
+	ContentType    *string
+	CreatedAt      time.Time
+}
+
+type MessageEnvelope struct {
 	ID                uuid.UUID
-	ConversationID    uuid.UUID
-	Kind              RecordKind
-	SenderID          *uuid.UUID
-	CiphertextContent []byte
-	RecipientDeviceID *uuid.UUID
-	PlaintextContent  []byte
-	Capabilities      []byte
+	MessageID         uuid.UUID
+	RecipientUserID   uuid.UUID
+	RecipientDeviceID uuid.UUID
+	IsIncoming        bool
+	Context           string
 	CreatedAt         time.Time
 }
 
