@@ -32,7 +32,7 @@ type AuthTestSuite struct {
 	ctr            *postgres.PostgresContainer
 	redisContainer *redisContainer.RedisContainer
 	store          *db.Store
-	app            *api.Server
+	app            *api.App
 	mailer         *mailer.MockMailer
 	rdb            *redis.Client
 }
@@ -90,7 +90,7 @@ func (s *AuthTestSuite) SetupSuite() {
 
 	s.mailer = new(mailer.MockMailer)
 
-	api, err := api.NewServer(s.store, s.mailer, s.rdb)
+	api, err := api.NewApp(s.store, s.mailer, s.rdb)
 	s.Require().NoError(err)
 
 	s.app = api

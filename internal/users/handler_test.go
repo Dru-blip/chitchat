@@ -29,7 +29,7 @@ type UsersTestSuite struct {
 	ctr            *postgres.PostgresContainer
 	redisContainer *redisContainer.RedisContainer
 	store          *db.Store
-	app            *api.Server
+	app            *api.App
 	mailer         *mailer.MockMailer
 	rdb            *redis.Client
 }
@@ -83,7 +83,7 @@ func (s *UsersTestSuite) SetupSuite() {
 
 	s.mailer = new(mailer.MockMailer)
 
-	apiServer, err := api.NewServer(s.store, s.mailer, s.rdb)
+	apiServer, err := api.NewApp(s.store, s.mailer, s.rdb)
 	s.Require().NoError(err)
 	s.app = apiServer
 	s.app.RegisterRoutes()

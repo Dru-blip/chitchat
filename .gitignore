@@ -32,8 +32,6 @@ go.work.sum
 # .vscode/
 
 .zed/
-# Generated code
-internal/db/sqlc/
 
 *.sqlite
 *.db
