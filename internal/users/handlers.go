@@ -70,5 +70,14 @@ func (h *Handler) me(c *echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, user)
+	resp := UserResponse{
+		ID:         user.ID.String(),
+		Email:      user.Email,
+		Name:       user.Name,
+		Image:      user.Image,
+		Onboarding: user.Onboarding,
+		CreatedAt:  user.CreatedAt,
+	}
+
+	return c.JSON(http.StatusOK, resp)
 }

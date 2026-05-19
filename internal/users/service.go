@@ -47,7 +47,7 @@ func (s *service) OnboardUser(ctx context.Context, name string, password string,
 }
 
 func (s *service) GetUser(ctx context.Context, userID uuid.UUID) (*sqlc.GetUserByIdRow, error) {
-	user, err := s.repo.GetUserByID(ctx, userID)
+	user, err := s.repo.GetUserById(ctx, userID)
 	if err != nil {
 		return nil, auth.ErrInternal
 	}

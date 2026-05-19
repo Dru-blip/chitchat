@@ -22,29 +22,134 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useUserContext } from "@/context/user-context";
 
 // ── Static data ────────────────────────────────────────────────────────────────
-
-const user = {
-  name: "Arjun Sharma",
-  email: "arjun.sharma@example.com",
-  avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=arjun",
-};
 
 const navItems = [
   { href: "/chats", label: "Chats", icon: BubbleChatIcon, badge: 4 },
   { href: "/spaces", label: "Spaces", icon: VideoReplayIcon, badge: 1 },
 ];
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function getInitials(name: string | null): string {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("");
+}
+
+// ── Skeleton for user section ──────────────────────────────────────────────────
+
+function UserSectionSkeleton() {
+  return (
+    <div className="flex items-center gap-3 w-full rounded-lg p-2 animate-pulse">
+      <div className="size-8 rounded-full bg-muted" />
+      <div className="flex flex-col gap-1.5 flex-1">
+        <div className="h-3.5 w-24 bg-muted rounded" />
+        <div className="h-3 w-32 bg-muted rounded" />
+      </div>
+    </div>
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export const Sidebar = () => {
   const pathname = usePathname();
+  const { user, loading, error } = useUserContext();
 
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("");
+  // Determine what to show in the user section
+  let userSection: React.ReactNode;
+
+  if (loading) {
+    userSection = <UserSectionSkeleton />;
+  } else if (error) {
+    userSection = (
+      <div className="flex items-center gap-3 w-full rounded-lg p-2">
+        <div className="size-8 shrink-0 rounded-full bg-destructive/10 flex items-center justify-center">
+          <span className="text-destructive text-xs font-bold">!</span>
+        </div>
+        <div className="flex flex-col items-start min-w-0 flex-1">
+          <span className="text-sm font-medium text-destructive leading-tight truncate w-full">
+            Error loading user
+          </span>
+          <span className="text-xs text-muted-foreground truncate w-full">
+            {error}
+          </span>
+        </div>
+      </div>
+    );
+  } else {
+    const displayName = user?.name ?? "Unknown";
+    const displayEmail = user?.email ?? "";
+    const avatarSrc =
+      user?.image ?? "https://api.dicebear.com/9.x/notionists/svg?seed=default";
+    const initials = getInitials(user?.name ?? null);
+
+    userSection = (
+      <div className="flex items-center gap-3 w-full rounded-lg p-2">
+        <Avatar className="size-8 shrink-0 ring-1 ring-border">
+          <AvatarImage src={avatarSrc} alt={displayName} />
+          <AvatarFallback className="text-[11px] font-semibold bg-muted text-muted-foreground">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex flex-col items-start min-w-0 flex-1">
+          <span className="text-sm font-medium text-sidebar-foreground leading-tight truncate w-full">
+            {displayName}
+          </span>
+          <span className="text-xs text-muted-foreground truncate w-full">
+            {displayEmail}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const dropdownUserSection = loading ? (
+    <UserSectionSkeleton />
+  ) : error ? (
+    <div className="flex items-center gap-3 w-full rounded-lg p-2">
+      <div className="size-8 shrink-0 rounded-full bg-destructive/10 flex items-center justify-center">
+        <span className="text-destructive text-xs font-bold">!</span>
+      </div>
+      <div className="flex flex-col items-start min-w-0 flex-1">
+        <span className="text-sm font-medium text-destructive leading-tight truncate w-full">
+          Error
+        </span>
+        <span className="text-xs text-muted-foreground truncate w-full">
+          {error}
+        </span>
+      </div>
+    </div>
+  ) : (
+    <div className="flex items-center gap-3 w-full rounded-lg p-2">
+      <Avatar className="size-8 shrink-0 ring-1 ring-border">
+        <AvatarImage
+          src={
+            user?.image ??
+            "https://api.dicebear.com/9.x/notionists/svg?seed=default"
+          }
+          alt={user?.name ?? "User"}
+        />
+        <AvatarFallback className="text-[11px] font-semibold bg-muted text-muted-foreground">
+          {getInitials(user?.name ?? null)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex flex-col items-start min-w-0 flex-1">
+        <span className="text-sm font-medium text-sidebar-foreground leading-tight truncate w-full">
+          {user?.name ?? "Unknown"}
+        </span>
+        <span className="text-xs text-muted-foreground truncate w-full">
+          {user?.email ?? ""}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -108,22 +213,7 @@ export const Sidebar = () => {
                   "hover:bg-sidebar-accent transition-colors duration-150 outline-none",
                 )}
               >
-                <Avatar className="size-8 shrink-0 ring-1 ring-border">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="text-[11px] font-semibold bg-muted text-muted-foreground">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex flex-col items-start min-w-0 flex-1">
-                  <span className="text-sm font-medium text-sidebar-foreground leading-tight truncate w-full">
-                    {user.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground truncate w-full">
-                    {user.email}
-                  </span>
-                </div>
-
+                {userSection}
                 <HugeiconsIcon
                   icon={ChevronUp}
                   size={14}
@@ -144,10 +234,7 @@ export const Sidebar = () => {
                 <p className="text-[11px] text-muted-foreground mb-0.5">
                   Signed in as
                 </p>
-                <p className="text-sm font-semibold truncate">{user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {user.email}
-                </p>
+                {dropdownUserSection}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -221,7 +308,10 @@ export const Sidebar = () => {
                     strokeWidth={isActive ? 2 : 1.5}
                   />
                   {item.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none">
+                    <span
+                      className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 flex items-center justify-center rounded-full
+bg-primary text-primary-foreground text-[9px] font-bold leading-none"
+                    >
                       {item.badge}
                     </span>
                   )}
@@ -241,13 +331,32 @@ export const Sidebar = () => {
           {/* Profile tab */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="relative flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl text-muted-foreground outline-none">
-                <Avatar className="size-6 ring-1 ring-border">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="text-[9px] font-semibold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
+              <button
+                className="relative flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl text-muted-foreground
+outline-none"
+              >
+                {loading ? (
+                  <div className="size-6 rounded-full bg-muted animate-pulse" />
+                ) : error ? (
+                  <div className="size-6 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <span className="text-destructive text-[9px] font-bold">
+                      !
+                    </span>
+                  </div>
+                ) : (
+                  <Avatar className="size-6 ring-1 ring-border">
+                    <AvatarImage
+                      src={
+                        user?.image ??
+                        "https://api.dicebear.com/9.x/notionists/svg?seed=default"
+                      }
+                      alt={user?.name ?? "User"}
+                    />
+                    <AvatarFallback className="text-[9px] font-semibold">
+                      {getInitials(user?.name ?? null)}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
                 <span className="text-[10px] font-medium leading-none">
                   Profile
                 </span>
@@ -262,22 +371,7 @@ export const Sidebar = () => {
               className="w-56 mb-1"
             >
               <DropdownMenuLabel className="font-normal py-2">
-                <div className="flex items-center gap-3">
-                  <Avatar className="size-9 ring-1 ring-border shrink-0">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="text-xs font-semibold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">
-                      {user.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user.email}
-                    </p>
-                  </div>
-                </div>
+                {dropdownUserSection}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
