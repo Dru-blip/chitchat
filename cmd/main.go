@@ -12,14 +12,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func init() {
+func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func main() {
 	store, err := db.Connect(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)

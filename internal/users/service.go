@@ -5,12 +5,14 @@ import (
 	"chitchat/internal/db/sqlc"
 	"context"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Service interface {
 	UpadateUser(ctx context.Context) (*sqlc.User, error)
 	OnboardUser(ctx context.Context, name, password, image, email string) (*sqlc.OnboardUserRow, error)
+	GetUser(ctx context.Context, userID uuid.UUID) (*sqlc.GetUserByIdRow, error)
 }
 
 type service struct {
@@ -41,6 +43,14 @@ func (s *service) OnboardUser(ctx context.Context, name string, password string,
 		return nil, auth.ErrInternal
 	}
 
+	return &user, nil
+}
+
+func (s *service) GetUser(ctx context.Context, userID uuid.UUID) (*sqlc.GetUserByIdRow, error) {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, auth.ErrInternal
+	}
 	return &user, nil
 }
 

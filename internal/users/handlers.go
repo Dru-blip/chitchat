@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/redis/go-redis/v9"
 )
@@ -29,6 +30,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	users := e.Group("/users")
 	users.Use(auth.AuthMiddleware)
 	users.PATCH("/onboard", h.onboard)
+	users.GET("/me", h.me)
 }
 
 func (h *Handler) onboard(c *echo.Context) error {
@@ -56,4 +58,17 @@ func (h *Handler) onboard(c *echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "onboarded successfully",
 	})
+}
+
+func (h *Handler) me(c *echo.Context) error {
+	userSession := c.Get("user").(auth.SessionStore)
+
+	userID, err := uuid.Parse(userSession.UserId)
+
+	user, err := h.service.GetUser(c.Request().Context(), userID)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, user)
 }
