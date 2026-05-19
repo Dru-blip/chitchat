@@ -15,13 +15,14 @@ import (
 const createConversation = `-- name: CreateConversation :one
 WITH new_conversation AS(
     INSERT INTO conversations(initiator_id, type)
-    VALUES ($1::uuid, $2::text)
+    VALUES ($2::uuid, $3::text)
     RETURNING id, type, name, initiator_id, created_at, updated_at
 ),
 conversation_participants AS(
     INSERT INTO conversation_participants(conversation_id, user_id)
     SELECT conversation_id, user_id
-    FROM unnest(ARRAY[new_conversation.id, new_conversation.id]) AS conversation_id, unnest(ARRAY[$1::uuid, $3::uuid]) AS user_id
+    FROM unnest(ARRAY[new_conversation.id, new_conversation.id]) AS conversation_id,
+        unnest(ARRAY[$2::uuid, (SELECT id from users where email=$1)]) AS user_id
     RETURNING conversation_id, user_id, joined_at, left_at, last_read
 )
 SELECT new_conversation.id, new_conversation.type, new_conversation.name, new_conversation.initiator_id, new_conversation.created_at, new_conversation.updated_at, jsonb_agg(to_jsonb(conversation_participants.*)) AS participants
@@ -30,9 +31,9 @@ JOIN conversation_participants ON new_conversation.id = conversation_participant
 `
 
 type CreateConversationParams struct {
-	InitiatorID   uuid.UUID
-	Type          string
-	ParticipantID uuid.UUID
+	Email       string
+	InitiatorID uuid.UUID
+	Type        string
 }
 
 type CreateConversationRow struct {
@@ -46,7 +47,7 @@ type CreateConversationRow struct {
 }
 
 func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversationParams) (CreateConversationRow, error) {
-	row := q.db.QueryRow(ctx, createConversation, arg.InitiatorID, arg.Type, arg.ParticipantID)
+	row := q.db.QueryRow(ctx, createConversation, arg.Email, arg.InitiatorID, arg.Type)
 	var i CreateConversationRow
 	err := row.Scan(
 		&i.ID,

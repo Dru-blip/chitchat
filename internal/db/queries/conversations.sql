@@ -7,7 +7,8 @@ WITH new_conversation AS(
 conversation_participants AS(
     INSERT INTO conversation_participants(conversation_id, user_id)
     SELECT conversation_id, user_id
-    FROM unnest(ARRAY[new_conversation.id, new_conversation.id]) AS conversation_id, unnest(ARRAY[@initiator_id::uuid, @participant_id::uuid]) AS user_id
+    FROM unnest(ARRAY[new_conversation.id, new_conversation.id]) AS conversation_id,
+        unnest(ARRAY[@initiator_id::uuid, (SELECT id from users where email=$1 LIMIT 1)]) AS user_id
     RETURNING *
 )
 SELECT new_conversation.*, jsonb_agg(to_jsonb(conversation_participants.*)) AS participants
