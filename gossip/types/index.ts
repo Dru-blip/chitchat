@@ -12,3 +12,20 @@ export interface User {
   createdAt: string | null;
   onboarding: boolean;
 }
+
+export interface Participant {
+  user_id: string;
+  email: string;
+  name?: string;
+  image?: string;
+}
+
+export interface Conversation {
+  id: string;
+  type: string;
+  name?: string;
+  initiator_id: string;
+  created_at: string;
+  updated_at: string;
+  participants: Participant[];
+}

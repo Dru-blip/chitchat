@@ -3,6 +3,7 @@ package conversations
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"chitchat/internal/auth"
 	"chitchat/internal/db/sqlc"
@@ -22,9 +23,10 @@ func (s *service) CreateConversation(ctx context.Context, userID uuid.UUID, type
 	error) {
 	row, err := s.repo.CreateConversation(ctx, sqlc.CreateConversationParams{
 		InitiatorID: userID,
-		Type:        type_,
+		Type:        sqlc.ConversationTypes(type_),
 		Email:       participantEmail,
 	})
+	fmt.Println(row, err)
 	if err != nil {
 		return nil, auth.ErrInternal
 	}

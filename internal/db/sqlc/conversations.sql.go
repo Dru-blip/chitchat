@@ -15,25 +15,34 @@ import (
 const createConversation = `-- name: CreateConversation :one
 WITH new_conversation AS(
     INSERT INTO conversations(initiator_id, type)
-    VALUES ($2::uuid, $3::text)
+    VALUES ($2::uuid, $3::conversation_types)
     RETURNING id, type, name, initiator_id, created_at, updated_at
 ),
 conversation_participants AS(
     INSERT INTO conversation_participants(conversation_id, user_id)
-    SELECT conversation_id, user_id
-    FROM unnest(ARRAY[new_conversation.id, new_conversation.id]) AS conversation_id,
-        unnest(ARRAY[$2::uuid, (SELECT id from users where email=$1)]) AS user_id
+    SELECT nc.id,k.user_id
+    FROM new_conversation nc,(SELECT unnest(ARRAY[$2::uuid, (SELECT u.id from users u where u.email=$1 LIMIT 1)]) AS user_id) k
     RETURNING conversation_id, user_id, joined_at, left_at, last_read
 )
-SELECT new_conversation.id, new_conversation.type, new_conversation.name, new_conversation.initiator_id, new_conversation.created_at, new_conversation.updated_at, jsonb_agg(to_jsonb(conversation_participants.*)) AS participants
-FROM new_conversation
-JOIN conversation_participants ON new_conversation.id = conversation_participants.conversation_id
+SELECT nc.id, nc.type, nc.name, nc.initiator_id, nc.created_at, nc.updated_at,
+    jsonb_agg(
+        jsonb_build_object('user_id',cp.user_id,
+            'joined_at',cp.joined_at,
+            'name',u.name,
+            'email',u.email,
+            'image',u.image
+        )
+    ) as participants
+FROM new_conversation nc
+JOIN conversation_participants cp ON nc.id=cp.conversation_id
+LEFT JOIN users u ON cp.user_id = u.id
+GROUP BY nc.id,nc.type,nc.name,nc.initiator_id,nc.created_at,nc.updated_at
 `
 
 type CreateConversationParams struct {
 	Email       string
 	InitiatorID uuid.UUID
-	Type        string
+	Type        ConversationTypes
 }
 
 type CreateConversationRow struct {

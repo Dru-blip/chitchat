@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useUserContext } from "@/context/user-context";
+import { useUserContext } from "@/context/user";
 
 // ── Static data ────────────────────────────────────────────────────────────────
 

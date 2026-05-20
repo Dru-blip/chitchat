@@ -22,6 +22,9 @@ type Conversation struct {
 type Participant struct {
 	ConversationID uuid.UUID  `json:"conversation_id"`
 	UserID         uuid.UUID  `json:"user_id"`
+	Email          string     `json:"email"`
+	Image          *string    `json:"image,omitempty"`
+	Name           *string    `json:"name,omitempty"`
 	JoinedAt       time.Time  `json:"joined_at"`
 	LeftAt         *time.Time `json:"left_at,omitempty"`
 	LastRead       *time.Time `json:"last_read,omitempty"`
