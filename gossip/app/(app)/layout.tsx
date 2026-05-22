@@ -2,9 +2,9 @@ import { Sidebar } from "@/components/sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <section className="flex">
+    <section className="flex h-dvh">
       <Sidebar />
-      <div>{children}</div>
+      <div className="flex-1 overflow-hidden">{children}</div>
     </section>
   );
 }

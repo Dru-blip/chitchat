@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { BubbleChatIcon } from "@hugeicons/core-free-icons";
 import {
@@ -58,9 +59,10 @@ function ConversationItem({
   const preview = conv.last_message?.text;
 
   return (
-    <div
+    <Link
+      href={`/chats/${conv.id}`}
       className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors cursor-pointer",
+        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
         "hover:bg-accent/50",
         isActive && "bg-accent",
       )}
@@ -94,7 +96,7 @@ function ConversationItem({
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

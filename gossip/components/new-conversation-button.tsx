@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import { useConversations } from "@/context/conversations";
 import { Conversation } from "@/types";
 
 export function NewConversationButton() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,6 +46,7 @@ export function NewConversationButton() {
       toast.success("Conversation created");
       setOpen(false);
       setEmail("");
+      router.push(`/chats/${data.id}`);
     }
     setLoading(false);
   };

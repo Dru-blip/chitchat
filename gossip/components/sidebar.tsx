@@ -1,16 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  BubbleChatIcon,
-  VideoReplayIcon,
-  UserIcon,
-  Settings01Icon,
-  Logout03Icon,
-  ChevronUp,
-} from "@hugeicons/core-free-icons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,18 +10,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn, getInitials } from "@/lib/utils";
 import { useUserContext } from "@/context/user";
+import { cn, getInitials } from "@/lib/utils";
+import {
+  BubbleChatIcon,
+  Logout03Icon,
+  Settings01Icon,
+  UserIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 // ── Static data ────────────────────────────────────────────────────────────────
 
 const navItems = [
   { href: "/chats", label: "Chats", icon: BubbleChatIcon, badge: 4 },
-  { href: "/spaces", label: "Spaces", icon: VideoReplayIcon, badge: 1 },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
 
 // ── Skeleton for user section ──────────────────────────────────────────────────
 
@@ -54,55 +50,6 @@ export const Sidebar = () => {
   const pathname = usePathname();
   const { user, loading, error } = useUserContext();
 
-  // Determine what to show in the user section
-  let userSection: React.ReactNode;
-
-  if (loading) {
-    userSection = <UserSectionSkeleton />;
-  } else if (error) {
-    userSection = (
-      <div className="flex items-center gap-3 w-full rounded-lg p-2">
-        <div className="size-8 shrink-0 rounded-full bg-destructive/10 flex items-center justify-center">
-          <span className="text-destructive text-xs font-bold">!</span>
-        </div>
-        <div className="flex flex-col items-start min-w-0 flex-1">
-          <span className="text-sm font-medium text-destructive leading-tight truncate w-full">
-            Error loading user
-          </span>
-          <span className="text-xs text-muted-foreground truncate w-full">
-            {error}
-          </span>
-        </div>
-      </div>
-    );
-  } else {
-    const displayName = user?.name ?? "Unknown";
-    const displayEmail = user?.email ?? "";
-    const avatarSrc =
-      user?.image ?? user?.image ?? undefined;
-    const initials = getInitials(user?.name ?? null);
-
-    userSection = (
-      <div className="flex items-center gap-3 w-full rounded-lg p-2">
-        <Avatar className="size-8 shrink-0 ring-1 ring-border">
-          <AvatarImage src={avatarSrc} alt={displayName} />
-          <AvatarFallback className="text-[11px] font-semibold bg-muted text-muted-foreground">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="flex flex-col items-start min-w-0 flex-1">
-          <span className="text-sm font-medium text-sidebar-foreground leading-tight truncate w-full">
-            {displayName}
-          </span>
-          <span className="text-xs text-muted-foreground truncate w-full">
-            {displayEmail}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
   const dropdownUserSection = loading ? (
     <UserSectionSkeleton />
   ) : error ? (
@@ -123,10 +70,7 @@ export const Sidebar = () => {
     <div className="flex items-center gap-3 w-full rounded-lg p-2">
       <Avatar className="size-8 shrink-0 ring-1 ring-border">
         <AvatarImage
-          src={
-            user?.image ??
-            user?.image ?? undefined
-          }
+          src={user?.image ?? user?.image ?? undefined}
           alt={user?.name ?? "User"}
         />
         <AvatarFallback className="text-[11px] font-semibold bg-muted text-muted-foreground">
@@ -149,13 +93,9 @@ export const Sidebar = () => {
       {/* ═══════════════════════════════════════════════
           DESKTOP — left sidebar
       ═══════════════════════════════════════════════ */}
-      <aside className="hidden md:flex flex-col h-screen w-60 border-r border-border bg-sidebar shrink-0">
+      <aside className="hidden md:flex flex-col h-screen w-14 border-r border-border bg-sidebar shrink-0">
         {/* Nav */}
-        <nav className="flex-1 flex flex-col gap-0.5 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground px-2 mb-2 mt-1">
-            Menu
-          </p>
-
+        <nav className="flex-1 flex flex-col items-center gap-0.5 p-2 pt-3">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
@@ -163,17 +103,18 @@ export const Sidebar = () => {
               <Link
                 key={item.href}
                 href={item.href}
+                title={item.label}
                 className={cn(
-                  "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 outline-none",
+                  "relative flex items-center justify-center size-10 rounded-lg text-sm font-medium transition-colors duration-150 outline-none",
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
               >
-                <div className="relative shrink-0">
+                <div className="relative">
                   <HugeiconsIcon
                     icon={item.icon}
-                    size={18}
+                    size={20}
                     color="currentColor"
                     strokeWidth={isActive ? 2 : 1.5}
                   />
@@ -190,30 +131,40 @@ export const Sidebar = () => {
                     </Badge>
                   )}
                 </div>
-                {item.label}
               </Link>
             );
           })}
         </nav>
 
         {/* User */}
-        <div className="border-t border-border p-3 shrink-0">
+        <div className="border-t border-border p-2 shrink-0 flex justify-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 className={cn(
-                  "group flex items-center gap-3 w-full rounded-lg p-2",
+                  "flex items-center justify-center size-10 rounded-lg",
                   "hover:bg-sidebar-accent transition-colors duration-150 outline-none",
                 )}
               >
-                {userSection}
-                <HugeiconsIcon
-                  icon={ChevronUp}
-                  size={14}
-                  color="currentColor"
-                  strokeWidth={1.5}
-                  className="text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                />
+                {loading ? (
+                  <div className="size-8 rounded-full bg-muted animate-pulse" />
+                ) : error ? (
+                  <div className="size-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <span className="text-destructive text-xs font-bold">
+                      !
+                    </span>
+                  </div>
+                ) : (
+                  <Avatar className="size-8 ring-1 ring-border">
+                    <AvatarImage
+                      src={user?.image ?? undefined}
+                      alt={user?.name ?? "User"}
+                    />
+                    <AvatarFallback className="text-[11px] font-semibold bg-muted text-muted-foreground">
+                      {getInitials(user?.name ?? null)}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </button>
             </DropdownMenuTrigger>
 
@@ -339,10 +290,7 @@ outline-none"
                 ) : (
                   <Avatar className="size-6 ring-1 ring-border">
                     <AvatarImage
-                      src={
-                        user?.image ??
-                        user?.image ?? undefined
-                      }
+                      src={user?.image ?? user?.image ?? undefined}
                       alt={user?.name ?? "User"}
                     />
                     <AvatarFallback className="text-[9px] font-semibold">

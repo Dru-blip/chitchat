@@ -34,3 +34,11 @@ export interface Conversation {
   is_online?: boolean;
   is_pinned?: boolean;
 }
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  text: string;
+  sent_at: string;
+}
