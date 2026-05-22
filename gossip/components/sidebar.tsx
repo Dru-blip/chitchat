@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { useUserContext } from "@/context/user";
 
 // ── Static data ────────────────────────────────────────────────────────────────
@@ -33,13 +33,6 @@ const navItems = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("");
-}
 
 // ── Skeleton for user section ──────────────────────────────────────────────────
 
@@ -86,7 +79,7 @@ export const Sidebar = () => {
     const displayName = user?.name ?? "Unknown";
     const displayEmail = user?.email ?? "";
     const avatarSrc =
-      user?.image ?? "https://api.dicebear.com/9.x/notionists/svg?seed=default";
+      user?.image ?? user?.image ?? undefined;
     const initials = getInitials(user?.name ?? null);
 
     userSection = (
@@ -132,7 +125,7 @@ export const Sidebar = () => {
         <AvatarImage
           src={
             user?.image ??
-            "https://api.dicebear.com/9.x/notionists/svg?seed=default"
+            user?.image ?? undefined
           }
           alt={user?.name ?? "User"}
         />
@@ -348,7 +341,7 @@ outline-none"
                     <AvatarImage
                       src={
                         user?.image ??
-                        "https://api.dicebear.com/9.x/notionists/svg?seed=default"
+                        user?.image ?? undefined
                       }
                       alt={user?.name ?? "User"}
                     />

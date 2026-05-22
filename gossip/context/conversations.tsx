@@ -32,15 +32,16 @@ export function ConversationsProvider({
 
   useEffect(() => {
     const fetchConversations = async () => {
-      // const { data, error } = await apiFetch<
-      //   Conversation[],
-      //   { message: string }
-      // >("conversations");
-      // if (error) {
-      //   setError(error.message);
-      // } else if (data) {
-      //   setConversations(data);
-      // }
+      const { data, error: fetchError } = await apiFetch<
+        Conversation[],
+        { message: string }
+      >("conversations");
+
+      if (fetchError) {
+        setError(fetchError.message);
+      } else if (data) {
+        setConversations(data);
+      }
       setLoading(false);
     };
     fetchConversations();

@@ -1,6 +1,7 @@
 import type { KeyPairType } from "@privacyresearch/libsignal-protocol-typescript";
 import { CryptoKeyStore } from "./keys";
 import { Store } from "./store";
+import { Conversation } from "@/types";
 
 export const identityStore = new CryptoKeyStore("identity_keys");
 export const signedPrekeyStore = new CryptoKeyStore("signed_prekeys");
@@ -8,6 +9,8 @@ export const oneTimePrekeyStore = new CryptoKeyStore("one_time_prekeys");
 export const registrationStore = new Store<number>("registration", {
   dbName: "KeyVault",
 });
+
+export const conversationStore = new Store<Conversation>("conversations");
 
 const counterStore = new Store<number>("id_counters");
 

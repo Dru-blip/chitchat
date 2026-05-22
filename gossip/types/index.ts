@@ -28,4 +28,9 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   participants: Participant[];
+
+  last_message?: { text: string; sender_id: string; sent_at: string };
+  unread_count?: number;
+  is_online?: boolean;
+  is_pinned?: boolean;
 }
