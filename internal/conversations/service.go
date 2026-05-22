@@ -3,7 +3,7 @@ package conversations
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"time"
 
 	"chitchat/internal/auth"
 	"chitchat/internal/db/sqlc"
@@ -26,25 +26,12 @@ func (s *service) CreateConversation(ctx context.Context, userID uuid.UUID, type
 		Type:        sqlc.ConversationTypes(type_),
 		Email:       participantEmail,
 	})
-	fmt.Println(row, err)
+
 	if err != nil {
 		return nil, auth.ErrInternal
 	}
 
-	var participants []Participant
-	if err := json.Unmarshal(row.Participants, &participants); err != nil {
-		return nil, auth.ErrInternal
-	}
-
-	return &Conversation{
-		ID:           row.ID,
-		Type:         string(row.Type),
-		Name:         row.Name,
-		InitiatorID:  row.InitiatorID,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
-		Participants: participants,
-	}, nil
+	return toConversation(row.ID, row.Type, row.Name, row.InitiatorID, row.CreatedAt, row.UpdatedAt, row.Participants)
 }
 
 func (s *service) GetConversationsByUser(ctx context.Context, userID uuid.UUID) ([]*Conversation, error) {
@@ -55,21 +42,30 @@ func (s *service) GetConversationsByUser(ctx context.Context, userID uuid.UUID) 
 
 	var conversations []*Conversation
 	for _, row := range rows {
-		var participants []Participant
-		if err := json.Unmarshal(row.Participants, &participants); err != nil {
-			return nil, auth.ErrInternal
+		conv, err := toConversation(row.ID, row.Type, row.Name, row.InitiatorID, row.CreatedAt, row.UpdatedAt, row.Participants)
+		if err != nil {
+			return nil, err
 		}
-
-		conversations = append(conversations, &Conversation{
-			ID:           row.ID,
-			Type:         string(row.Type),
-			Name:         row.Name,
-			InitiatorID:  row.InitiatorID,
-			CreatedAt:    row.CreatedAt,
-			UpdatedAt:    row.UpdatedAt,
-			Participants: participants,
-		})
+		conversations = append(conversations, conv)
 	}
 
 	return conversations, nil
+}
+
+func toConversation(id uuid.UUID, convType sqlc.ConversationTypes, name *string, initiatorID uuid.UUID, createdAt, updatedAt time.Time,
+	participantsData []byte) (*Conversation, error) {
+	var participants []Participant
+	if err := json.Unmarshal(participantsData, &participants); err != nil {
+		return nil, auth.ErrInternal
+	}
+
+	return &Conversation{
+		ID:           id,
+		Type:         string(convType),
+		Name:         name,
+		InitiatorID:  initiatorID,
+		CreatedAt:    createdAt,
+		UpdatedAt:    updatedAt,
+		Participants: participants,
+	}, nil
 }
