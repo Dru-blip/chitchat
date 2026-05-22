@@ -38,5 +38,4 @@ go.work.sum
 
 r.txt
 .aider*
-
-.crush
+.code-review-graph

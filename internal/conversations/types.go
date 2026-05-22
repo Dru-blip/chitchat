@@ -37,8 +37,10 @@ type CreateConversationPayload struct {
 
 type Repository interface {
 	CreateConversation(ctx context.Context, arg sqlc.CreateConversationParams) (sqlc.CreateConversationRow, error)
+	GetConversationsByUser(ctx context.Context, userID uuid.UUID) ([]sqlc.GetConversationsByUserRow, error)
 }
 
 type Service interface {
 	CreateConversation(ctx context.Context, userID uuid.UUID, type_ string, participantEmail string) (*Conversation, error)
+	GetConversationsByUser(ctx context.Context, userID uuid.UUID) ([]*Conversation, error)
 }

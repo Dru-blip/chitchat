@@ -46,3 +46,30 @@ func (s *service) CreateConversation(ctx context.Context, userID uuid.UUID, type
 		Participants: participants,
 	}, nil
 }
+
+func (s *service) GetConversationsByUser(ctx context.Context, userID uuid.UUID) ([]*Conversation, error) {
+	rows, err := s.repo.GetConversationsByUser(ctx, userID)
+	if err != nil {
+		return nil, auth.ErrInternal
+	}
+
+	var conversations []*Conversation
+	for _, row := range rows {
+		var participants []Participant
+		if err := json.Unmarshal(row.Participants, &participants); err != nil {
+			return nil, auth.ErrInternal
+		}
+
+		conversations = append(conversations, &Conversation{
+			ID:           row.ID,
+			Type:         string(row.Type),
+			Name:         row.Name,
+			InitiatorID:  row.InitiatorID,
+			CreatedAt:    row.CreatedAt,
+			UpdatedAt:    row.UpdatedAt,
+			Participants: participants,
+		})
+	}
+
+	return conversations, nil
+}

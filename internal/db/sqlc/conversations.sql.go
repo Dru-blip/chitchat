@@ -69,3 +69,57 @@ func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversation
 	)
 	return i, err
 }
+
+const getConversationsByUser = `-- name: GetConversationsByUser :many
+SELECT c.id, c.type, c.name, c.initiator_id, c.created_at, c.updated_at,jsonb_agg(
+        jsonb_build_object('user_id',cp.user_id,
+            'joined_at',cp.joined_at,
+            'name',u.name,
+            'email',u.email,
+            'image',u.image
+        )
+    ) as participants
+FROM conversations c
+INNER JOIN conversation_participants cp ON c.id=cp.conversation_id
+LEFT JOIN users u ON cp.user_id=u.id
+WHERE c.id IN (SELECT cp2.conversation_id FROM conversation_participants cp2 WHERE cp2.user_id = $1)
+GROUP BY c.id,c.type,c.name,c.initiator_id,c.created_at,c.updated_at
+`
+
+type GetConversationsByUserRow struct {
+	ID           uuid.UUID
+	Type         ConversationTypes
+	Name         *string
+	InitiatorID  uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Participants []byte
+}
+
+func (q *Queries) GetConversationsByUser(ctx context.Context, userID uuid.UUID) ([]GetConversationsByUserRow, error) {
+	rows, err := q.db.Query(ctx, getConversationsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetConversationsByUserRow
+	for rows.Next() {
+		var i GetConversationsByUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Name,
+			&i.InitiatorID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Participants,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

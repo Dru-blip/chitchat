@@ -21,6 +21,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	conv := e.Group("/conversations")
 	conv.Use(auth.AuthMiddleware)
 	conv.POST("", h.createConversation)
+	conv.GET("", h.getConversations)
 }
 
 func (h *Handler) createConversation(c *echo.Context) error {
@@ -44,4 +45,17 @@ func (h *Handler) createConversation(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, conv)
+}
+
+func (h *Handler) getConversations(c *echo.Context) error {
+	userSession := c.Get("user").(auth.SessionStore)
+
+	userID, _ := uuid.Parse(userSession.UserId)
+
+	conversations, err := h.service.GetConversationsByUser(c.Request().Context(), userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch conversations")
+	}
+
+	return c.JSON(http.StatusOK, conversations)
 }
