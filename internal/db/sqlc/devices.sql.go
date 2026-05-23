@@ -13,11 +13,11 @@ import (
 
 const createDevice = `-- name: CreateDevice :one
 INSERT INTO devices (
-    pubkey, name, os, client,registration_id, user_agent, user_id
+    pubkey, name, os, client, registration_id, client_id, user_agent, user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6,$7
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, pubkey, name, registration_id, os, client, user_agent, user_id, last_seen, created_at, updated_at
+RETURNING id, pubkey, name, registration_id, client_id, os, client, user_agent, user_id, last_seen, created_at, updated_at
 `
 
 type CreateDeviceParams struct {
@@ -26,6 +26,7 @@ type CreateDeviceParams struct {
 	Os             string
 	Client         ClientType
 	RegistrationID int32
+	ClientID       int32
 	UserAgent      *string
 	UserID         uuid.UUID
 }
@@ -37,6 +38,7 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Dev
 		arg.Os,
 		arg.Client,
 		arg.RegistrationID,
+		arg.ClientID,
 		arg.UserAgent,
 		arg.UserID,
 	)
@@ -46,6 +48,7 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Dev
 		&i.Pubkey,
 		&i.Name,
 		&i.RegistrationID,
+		&i.ClientID,
 		&i.Os,
 		&i.Client,
 		&i.UserAgent,
@@ -58,7 +61,7 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Dev
 }
 
 const getDeviceByPubkey = `-- name: GetDeviceByPubkey :one
-SELECT id, pubkey, name, registration_id, os, client, user_agent, user_id, last_seen, created_at, updated_at FROM devices
+SELECT id, pubkey, name, registration_id, client_id, os, client, user_agent, user_id, last_seen, created_at, updated_at FROM devices
 WHERE pubkey = $1
 LIMIT 1
 `
@@ -71,6 +74,7 @@ func (q *Queries) GetDeviceByPubkey(ctx context.Context, pubkey string) (Device,
 		&i.Pubkey,
 		&i.Name,
 		&i.RegistrationID,
+		&i.ClientID,
 		&i.Os,
 		&i.Client,
 		&i.UserAgent,
@@ -83,7 +87,7 @@ func (q *Queries) GetDeviceByPubkey(ctx context.Context, pubkey string) (Device,
 }
 
 const getDevicesByUserId = `-- name: GetDevicesByUserId :many
-SELECT id, pubkey, name, registration_id, os, client, user_agent, user_id, last_seen, created_at, updated_at FROM devices
+SELECT id, pubkey, name, registration_id, client_id, os, client, user_agent, user_id, last_seen, created_at, updated_at FROM devices
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -102,6 +106,7 @@ func (q *Queries) GetDevicesByUserId(ctx context.Context, userID uuid.UUID) ([]D
 			&i.Pubkey,
 			&i.Name,
 			&i.RegistrationID,
+			&i.ClientID,
 			&i.Os,
 			&i.Client,
 			&i.UserAgent,
@@ -124,7 +129,7 @@ const updateDevice = `-- name: UpdateDevice :one
 UPDATE devices
 SET name = $2, os = $3, client = $4, user_agent = $5, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, pubkey, name, registration_id, os, client, user_agent, user_id, last_seen, created_at, updated_at
+RETURNING id, pubkey, name, registration_id, client_id, os, client, user_agent, user_id, last_seen, created_at, updated_at
 `
 
 type UpdateDeviceParams struct {
@@ -149,6 +154,7 @@ func (q *Queries) UpdateDevice(ctx context.Context, arg UpdateDeviceParams) (Dev
 		&i.Pubkey,
 		&i.Name,
 		&i.RegistrationID,
+		&i.ClientID,
 		&i.Os,
 		&i.Client,
 		&i.UserAgent,

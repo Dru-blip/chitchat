@@ -25,17 +25,18 @@ func (q *Queries) CleanupExpiredMagicLinks(ctx context.Context) error {
 
 const createMagicLinkSession = `-- name: CreateMagicLinkSession :one
 INSERT INTO magic_link_sessions (
-    token, email, pubkey,registration_id,ip_address, user_agent, expires_at
+    token, email, pubkey, client_id, registration_id, ip_address, user_agent, expires_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6,$7
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, token, email, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
+RETURNING id, token, email, client_id, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
 `
 
 type CreateMagicLinkSessionParams struct {
 	Token          string
 	Email          string
 	Pubkey         string
+	ClientID       int32
 	RegistrationID int32
 	IpAddress      netip.Addr
 	UserAgent      *string
@@ -47,6 +48,7 @@ func (q *Queries) CreateMagicLinkSession(ctx context.Context, arg CreateMagicLin
 		arg.Token,
 		arg.Email,
 		arg.Pubkey,
+		arg.ClientID,
 		arg.RegistrationID,
 		arg.IpAddress,
 		arg.UserAgent,
@@ -57,6 +59,7 @@ func (q *Queries) CreateMagicLinkSession(ctx context.Context, arg CreateMagicLin
 		&i.ID,
 		&i.Token,
 		&i.Email,
+		&i.ClientID,
 		&i.RegistrationID,
 		&i.Pubkey,
 		&i.IpAddress,
@@ -103,7 +106,7 @@ func (q *Queries) ExpireOldMagicLinks(ctx context.Context) error {
 }
 
 const getMagicLinkSessionByEmail = `-- name: GetMagicLinkSessionByEmail :many
-SELECT id, token, email, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at FROM magic_link_sessions
+SELECT id, token, email, client_id, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at FROM magic_link_sessions
 WHERE email = $1
 ORDER BY created_at DESC
 `
@@ -121,6 +124,7 @@ func (q *Queries) GetMagicLinkSessionByEmail(ctx context.Context, email string) 
 			&i.ID,
 			&i.Token,
 			&i.Email,
+			&i.ClientID,
 			&i.RegistrationID,
 			&i.Pubkey,
 			&i.IpAddress,
@@ -142,7 +146,7 @@ func (q *Queries) GetMagicLinkSessionByEmail(ctx context.Context, email string) 
 }
 
 const getMagicLinkSessionByToken = `-- name: GetMagicLinkSessionByToken :one
-SELECT id, token, email, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at FROM magic_link_sessions
+SELECT id, token, email, client_id, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at FROM magic_link_sessions
 WHERE token = $1
 LIMIT 1
 `
@@ -154,6 +158,7 @@ func (q *Queries) GetMagicLinkSessionByToken(ctx context.Context, token string) 
 		&i.ID,
 		&i.Token,
 		&i.Email,
+		&i.ClientID,
 		&i.RegistrationID,
 		&i.Pubkey,
 		&i.IpAddress,
@@ -168,7 +173,7 @@ func (q *Queries) GetMagicLinkSessionByToken(ctx context.Context, token string) 
 }
 
 const getPendingMagicLinkSession = `-- name: GetPendingMagicLinkSession :one
-SELECT id, token, email, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at FROM magic_link_sessions
+SELECT id, token, email, client_id, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at FROM magic_link_sessions
 WHERE email = $1
   AND status = 'pending'
   AND expires_at > CURRENT_TIMESTAMP
@@ -182,6 +187,7 @@ func (q *Queries) GetPendingMagicLinkSession(ctx context.Context, email string) 
 		&i.ID,
 		&i.Token,
 		&i.Email,
+		&i.ClientID,
 		&i.RegistrationID,
 		&i.Pubkey,
 		&i.IpAddress,
@@ -199,7 +205,7 @@ const markMagicLinkAsUsed = `-- name: MarkMagicLinkAsUsed :one
 UPDATE magic_link_sessions
 SET status = 'used'
 WHERE token = $1
-RETURNING id, token, email, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
+RETURNING id, token, email, client_id, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
 `
 
 func (q *Queries) MarkMagicLinkAsUsed(ctx context.Context, token string) (MagicLinkSession, error) {
@@ -209,6 +215,7 @@ func (q *Queries) MarkMagicLinkAsUsed(ctx context.Context, token string) (MagicL
 		&i.ID,
 		&i.Token,
 		&i.Email,
+		&i.ClientID,
 		&i.RegistrationID,
 		&i.Pubkey,
 		&i.IpAddress,
@@ -239,7 +246,7 @@ SET token = $2,
     attempts = $3,
     expires_at = $4
 WHERE id = $1
-RETURNING id, token, email, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
+RETURNING id, token, email, client_id, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
 `
 
 type UpdateMagicLinkSessionParams struct {
@@ -261,6 +268,7 @@ func (q *Queries) UpdateMagicLinkSession(ctx context.Context, arg UpdateMagicLin
 		&i.ID,
 		&i.Token,
 		&i.Email,
+		&i.ClientID,
 		&i.RegistrationID,
 		&i.Pubkey,
 		&i.IpAddress,
@@ -278,7 +286,7 @@ const updateMagicLinkStatus = `-- name: UpdateMagicLinkStatus :one
 UPDATE magic_link_sessions
 SET status = $2
 WHERE id = $1
-RETURNING id, token, email, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
+RETURNING id, token, email, client_id, registration_id, pubkey, ip_address, user_agent, attempts, status, expires_at, created_at, updated_at
 `
 
 type UpdateMagicLinkStatusParams struct {
@@ -293,6 +301,7 @@ func (q *Queries) UpdateMagicLinkStatus(ctx context.Context, arg UpdateMagicLink
 		&i.ID,
 		&i.Token,
 		&i.Email,
+		&i.ClientID,
 		&i.RegistrationID,
 		&i.Pubkey,
 		&i.IpAddress,

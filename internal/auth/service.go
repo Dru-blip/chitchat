@@ -32,12 +32,13 @@ func NewService(repo Repository, mailer Mailer) Service {
 	}
 }
 
-func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, registrationId int32, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
+func (s *service) SendMagicLink(ctx context.Context, email, pubkey string, registrationId, clientId int32,
+	ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
 	//TODO: Check for existing magic links
 	session, err := s.repo.GetPendingMagicLinkSession(ctx, email)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return s.createFreshMagicLinkSession(ctx, email, pubkey, registrationId, ipAddress, userAgent)
+			return s.createFreshMagicLinkSession(ctx, email, pubkey, registrationId, clientId, ipAddress, userAgent)
 		}
 		return nil, ErrInternal
 	}
@@ -155,7 +156,7 @@ func (s *service) GetOrCreateUser(ctx context.Context, email, pubkey string) (*s
 	return &user, false, nil
 }
 
-func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string, registrationId int32) (*sqlc.Device, error) {
+func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubkey, os, user_agent string, registrationId, clientId int32) (*sqlc.Device, error) {
 	device, err := s.repo.GetDeviceByPubkey(ctx, pubkey)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -164,6 +165,7 @@ func (s *service) GetOrCreateDevice(ctx context.Context, user_id uuid.UUID, pubk
 				UserID:         user_id,
 				Name:           "unknown",
 				RegistrationID: registrationId,
+				ClientID:       clientId,
 				Os:             os,
 				Client:         "web",
 				UserAgent:      &user_agent,
@@ -190,7 +192,7 @@ func (s *service) getRetryAfter(cooldown time.Duration, updatedAt time.Time) tim
 	return updatedAt.Add(cooldown)
 }
 
-func (s *service) createFreshMagicLinkSession(ctx context.Context, email, pubkey string, registrationId int32, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
+func (s *service) createFreshMagicLinkSession(ctx context.Context, email, pubkey string, registrationId, clientId int32, ipAddress netip.Addr, userAgent string) (*SendMagicLinkResponse, error) {
 	token, err := utils.GenerateMagicLinkToken()
 	if err != nil {
 		return nil, ErrInternal
@@ -199,8 +201,9 @@ func (s *service) createFreshMagicLinkSession(ctx context.Context, email, pubkey
 	session, err := s.repo.CreateMagicLinkSession(ctx, sqlc.CreateMagicLinkSessionParams{
 		Email:          email,
 		Pubkey:         pubkey,
-		IpAddress:      ipAddress,
+		ClientID:       clientId,
 		RegistrationID: registrationId,
+		IpAddress:      ipAddress,
 		UserAgent:      &userAgent,
 		Token:          utils.SHA256(token),
 		ExpiresAt:      time.Now().Add(time.Minute * 15),

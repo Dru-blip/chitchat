@@ -1,10 +1,11 @@
 -- name: CreateMagicLinkSession :one
 INSERT INTO magic_link_sessions (
-    token, email, pubkey,registration_id,ip_address, user_agent, expires_at
+    token, email, pubkey, client_id, registration_id, ip_address, user_agent, expires_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6,$7
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING *;
+
 
 -- name: GetMagicLinkSessionByToken :one
 SELECT * FROM magic_link_sessions

@@ -43,7 +43,8 @@ func (h *Handler) sendMagicLink(c *echo.Context) error {
 		return err
 	}
 	addr := getClientIP(c)
-	magic_link_session, err := h.service.SendMagicLink(c.Request().Context(), payload.Email, payload.Pubkey, payload.RegistrationID, addr, c.Request().UserAgent())
+	magic_link_session, err := h.service.SendMagicLink(c.Request().Context(), payload.Email, payload.Pubkey,
+		payload.RegistrationID, payload.ClientID, addr, c.Request().UserAgent())
 	if err != nil {
 		if errors.Is(err, ErrTooManyAttempts) {
 			return c.JSON(http.StatusTooManyRequests, magic_link_session)
@@ -79,7 +80,7 @@ func (h *Handler) verifyMagicLink(c *echo.Context) error {
 
 	//TODO: device creation and prekeys setup
 	//TODO: should receive windows and client fingerprints from payload
-	device, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent(), magic_session.RegistrationID)
+	device, err := h.service.GetOrCreateDevice(c.Request().Context(), user.ID, magic_session.Pubkey, "Windows 11", c.Request().UserAgent(), magic_session.RegistrationID, magic_session.ClientID)
 
 	if err != nil {
 		return err

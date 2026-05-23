@@ -164,6 +164,7 @@ type Device struct {
 	Pubkey         string
 	Name           string
 	RegistrationID int32
+	ClientID       int32
 	Os             string
 	Client         ClientType
 	UserAgent      *string
@@ -192,6 +193,7 @@ type MagicLinkSession struct {
 	ID             uuid.UUID
 	Token          string
 	Email          string
+	ClientID       int32
 	RegistrationID int32
 	Pubkey         string
 	IpAddress      netip.Addr
