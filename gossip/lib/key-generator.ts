@@ -18,6 +18,14 @@ export const initializeRegistrationId = async (): Promise<void> => {
   await registrationStore.set("registrationId", registrationId);
 };
 
+export const initializeDeviceId = async (): Promise<void> => {
+  const existing = await registrationStore.get("deviceId");
+  if (existing) return;
+
+  const deviceId = KeyHelper.generateRegistrationId();
+  await registrationStore.set("deviceId", deviceId);
+};
+
 export const initializeIdentityKey = async (): Promise<void> => {
   const existingIdentity = await identityStore.loadPair("identity");
   if (existingIdentity) {
@@ -71,6 +79,7 @@ export const initializePreKeys = async (
 
 export const initializeKeys = async (): Promise<void> => {
   await initializeRegistrationId();
+  await initializeDeviceId();
   await initializeIdentityKey();
   await initializeSignedPreKey();
   await initializePreKeys();

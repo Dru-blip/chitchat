@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS devices(
     pubkey TEXT UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     registration_id INTEGER NOT NULL,
-    os TEXT NOT NULL,  -- iOS, Android, Windows, macOS, Linux
+    client_id INTEGER NOT NULL,
+    os TEXT NOT NULL,
     client client_type NOT NULL,
     user_agent TEXT,
     user_id UUID NOT NULL,

@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS magic_link_sessions(
     id UUID PRIMARY KEY NOT NULL DEFAULT uuidv7(),
     token TEXT UNIQUE NOT NULL,
     email VARCHAR(360) NOT NULL,
+    client_id INTEGER NOT NULL,
     registration_id INTEGER NOT NULL,
     pubkey TEXT NOT NULL,
     ip_address INET NOT NULL,
