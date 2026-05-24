@@ -17,7 +17,7 @@ type prekeyUpload struct {
 }
 
 type Service interface {
-	GetKeyBundle(ctx context.Context, user_id string) (*sqlc.GetKeybundleRow, error)
+	GetKeyBundle(ctx context.Context, user_id string) ([]KeyBundle, error)
 	UploadPrekeys(ctx context.Context, data prekeyUpload) error
 }
 
@@ -51,12 +51,25 @@ func (s *service) UploadPrekeys(ctx context.Context, data prekeyUpload) error {
 	return nil
 }
 
-func (s *service) GetKeyBundle(ctx context.Context, user_id string) (*sqlc.GetKeybundleRow, error) {
+func (s *service) GetKeyBundle(ctx context.Context, user_id string) ([]KeyBundle, error) {
 	uid := uuid.MustParse(user_id)
 	key_bundle, err := s.repo.GetKeybundle(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
 
-	return &key_bundle, nil
+	var bundle []KeyBundle
+
+	for _, row := range key_bundle {
+		bundle = append(bundle, KeyBundle{
+			DeviceID:     row.DeviceID.String(),
+			ClientID:     row.ClientID,
+			SignedPreKey: row.SignedPrekey,
+			Signature:    row.Signature,
+			PrekeyID:     row.PrekeyID,
+			Prekey:       row.Prekey,
+		})
+	}
+
+	return bundle, nil
 }

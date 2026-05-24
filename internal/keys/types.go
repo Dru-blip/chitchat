@@ -20,6 +20,15 @@ type UploadPayload struct {
 }
 
 type Repository interface {
-	GetKeybundle(ctx context.Context, userID uuid.UUID) (sqlc.GetKeybundleRow, error)
+	GetKeybundle(ctx context.Context, userID uuid.UUID) ([]sqlc.GetKeybundleRow, error)
 	InsertPreKeys(ctx context.Context, arg sqlc.InsertPreKeysParams) (int64, error)
+}
+
+type KeyBundle struct {
+	DeviceID     string `json:"deviceId"`
+	ClientID     int32  `json:"clientId"`
+	SignedPreKey string `json:"signedPreKey"`
+	Signature    string `json:"signature"`
+	PrekeyID     int32  `json:"prekeyId"`
+	Prekey       string `json:"prekey"`
 }

@@ -67,6 +67,7 @@ func (h *Handler) GetkeyBundle(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return c.JSON(http.StatusOK, map[string]any{
 		"bundle": key_bundle,
 	})

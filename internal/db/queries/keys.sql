@@ -32,9 +32,9 @@ SELECT count(*)
 FROM prekeys;
 
 
--- name: GetKeybundle :one
+-- name: GetKeybundle :many
 WITH user_devices AS (
-    SELECT id
+    SELECT id,client_id
     FROM devices
     WHERE user_id = $1
 ),
@@ -67,10 +67,12 @@ consumed_prekey AS (
         public_key
 )
 SELECT pk.device_id,
+    ud.client_id,
     sk.key_id as signed_key_id,
-    sk.public_key as signed_pubkey,
-    sk.signature as signed_signature,
+    sk.public_key as signed_prekey,
+    sk.signature as signature,
     pk.key_id as prekey_id,
     pk.public_key as prekey
 FROM consumed_prekey pk
-    JOIN signed_keys sk ON sk.device_id = pk.device_id;
+    JOIN signed_keys sk ON sk.device_id = pk.device_id
+    JOIN user_devices ud ON ud.id = pk.device_id;

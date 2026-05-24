@@ -5,6 +5,7 @@ import { Conversation, Message, Participant } from "@/types";
 import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
+import { apiFetch } from "@/lib/utils";
 
 interface ChatViewProps {
   conversation: Conversation;
@@ -18,9 +19,19 @@ export function ChatView({ conversation, messages }: ChatViewProps) {
     (p) => p.user_id !== user?.id,
   );
 
-  const handleSend = (text: string) => {
-    // Stub — will be replaced with real API call
-    console.log("Send message:", text, "to conversation:", conversation.id);
+  const handleSend = async (text: string) => {
+    if (!otherParticipant?.user_id) return;
+
+    const { data, error } = await apiFetch(`keys/${otherParticipant.user_id}`, {
+      method: "POST",
+    });
+
+    if (error) {
+      console.error("Failed to fetch key bundle:", error);
+      return;
+    }
+
+    console.log("Key bundle fetched successfully:", data);
   };
 
   return (
@@ -34,10 +45,7 @@ export function ChatView({ conversation, messages }: ChatViewProps) {
         currentUserId={user?.id ?? ""}
         otherParticipant={otherParticipant}
       />
-      <MessageInput
-        conversationId={conversation.id}
-        onSend={handleSend}
-      />
+      <MessageInput conversationId={conversation.id} onSend={handleSend} />
     </div>
   );
 }
