@@ -35,7 +35,7 @@ CREATE TABLE messages (
     sender_user_id UUID NOT NULL,
     sender_device_id UUID NOT NULL,
     sequence_id INT NOT NULL,
-    content_type TEXT DEFAULT 'text',
+    content_type TEXT NOT NULL DEFAULT 'text',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,

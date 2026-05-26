@@ -5,6 +5,7 @@ import (
 	"chitchat/internal/conversations"
 	"chitchat/internal/db"
 	"chitchat/internal/keys"
+	"chitchat/internal/messages"
 	"chitchat/internal/users"
 	"chitchat/internal/utils"
 	"encoding/gob"
@@ -55,6 +56,10 @@ func (s *App) RegisterRoutes() {
 	convService := conversations.NewService(s.store.Queries)
 	convHandler := conversations.NewHandler(convService)
 	convHandler.Register(s.api)
+
+	msgService := messages.NewService(s.store)
+	msgHandler := messages.NewHandler(msgService)
+	msgHandler.Register(s.api)
 }
 
 func (s *App) Start() {

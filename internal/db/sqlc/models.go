@@ -211,7 +211,7 @@ type Message struct {
 	SenderUserID   uuid.UUID
 	SenderDeviceID uuid.UUID
 	SequenceID     int32
-	ContentType    *string
+	ContentType    string
 	CreatedAt      time.Time
 }
 
