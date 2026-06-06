@@ -4,7 +4,6 @@ import (
 	"chitchat/cmd/api"
 	"chitchat/internal/db"
 	"chitchat/internal/mailer"
-	"chitchat/internal/mqttclient"
 	"log"
 	"os"
 
@@ -35,12 +34,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	mqttClient, err := mqttclient.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	server, err := api.NewApp(store, stmp_mailer, rdb, mqttClient)
+	server, err := api.NewApp(store, stmp_mailer, rdb)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -11,7 +11,6 @@ import (
 	"encoding/gob"
 
 	"github.com/alexedwards/scs/v2"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/redis/go-redis/v9"
@@ -23,10 +22,9 @@ type App struct {
 	Mailer         Mailer
 	sessionManager *scs.SessionManager
 	rdb            *redis.Client
-	mqttClient     mqtt.Client
 }
 
-func NewApp(store *db.Store, mailer Mailer, rdb *redis.Client, mqttClient mqtt.Client) (*App, error) {
+func NewApp(store *db.Store, mailer Mailer, rdb *redis.Client) (*App, error) {
 	gob.Register(auth.SessionStore{})
 	sessionManager := auth.NewSessionManager(rdb)
 	api := SetupEcho(sessionManager)
@@ -36,7 +34,6 @@ func NewApp(store *db.Store, mailer Mailer, rdb *redis.Client, mqttClient mqtt.C
 		Mailer:         mailer,
 		sessionManager: sessionManager,
 		rdb:            rdb,
-		mqttClient:     mqttClient,
 	}, nil
 }
 
