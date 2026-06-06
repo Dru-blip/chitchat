@@ -8,6 +8,7 @@ import (
 	"chitchat/internal/messages"
 	"chitchat/internal/users"
 	"chitchat/internal/utils"
+	"chitchat/internal/ws"
 	"encoding/gob"
 
 	"github.com/alexedwards/scs/v2"
@@ -21,6 +22,7 @@ type App struct {
 	api            *echo.Echo
 	Mailer         Mailer
 	sessionManager *scs.SessionManager
+	wsHub          *ws.Hub
 	rdb            *redis.Client
 }
 
@@ -28,11 +30,14 @@ func NewApp(store *db.Store, mailer Mailer, rdb *redis.Client) (*App, error) {
 	gob.Register(auth.SessionStore{})
 	sessionManager := auth.NewSessionManager(rdb)
 	api := SetupEcho(sessionManager)
+	wsHub := ws.NewHub()
+
 	return &App{
 		store:          store,
 		api:            api,
 		Mailer:         mailer,
 		sessionManager: sessionManager,
+		wsHub:          wsHub,
 		rdb:            rdb,
 	}, nil
 }
@@ -57,6 +62,9 @@ func (s *App) RegisterRoutes() {
 	msgService := messages.NewService(s.store)
 	msgHandler := messages.NewHandler(msgService)
 	msgHandler.Register(s.api)
+
+	wsHandler := ws.NewHandler(s.wsHub)
+	wsHandler.Register(s.api)
 }
 
 func (s *App) Start() {

@@ -42,3 +42,8 @@ export interface Message {
   text: string;
   sent_at: string;
 }
+
+export interface WebsocketEvent {
+  event: 100;
+  payload: Record<string, unknown>;
+}
