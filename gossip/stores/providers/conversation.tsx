@@ -1,6 +1,12 @@
 "use client";
 
-import { type ReactNode, createContext, useState, useContext } from "react";
+import {
+  type ReactNode,
+  createContext,
+  useState,
+  useContext,
+  use,
+} from "react";
 import { useStore } from "zustand";
 
 import {
@@ -23,16 +29,16 @@ export const ConversationStoreProvider = ({
 }: ConversationStoreProviderProps) => {
   const [store] = useState(() => createConversationStore());
   return (
-    <ConversationStoreContext.Provider value={store}>
+    <ConversationStoreContext value={store}>
       {children}
-    </ConversationStoreContext.Provider>
+    </ConversationStoreContext>
   );
 };
 
 export const useConversationStore = <T,>(
   selector: (store: ConversationStore) => T,
 ): T => {
-  const conversationStoreContext = useContext(ConversationStoreContext);
+  const conversationStoreContext = use(ConversationStoreContext);
   if (!conversationStoreContext) {
     throw new Error(
       `useConversationStore must be used within ConversationStoreProvider`,

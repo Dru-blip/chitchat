@@ -1,4 +1,5 @@
 "use client";
+import { useActiveConversationStore } from "@/stores/providers/active-conversation";
 import { useConversationStore } from "@/stores/providers/conversation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
@@ -27,6 +28,7 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
   const addConversation = useConversationStore(
     (state) => state.addConversation,
   );
+  const addMessage = useActiveConversationStore((state) => state.addMessage);
 
   useEffect(() => {
     const socket = new WebSocket("ws://localhost:5050/ws");
@@ -51,14 +53,19 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     socket.onmessage = (evt) => {
-      const msg = JSON.parse(evt.data);
-      switch (msg.event) {
+      const data = JSON.parse(evt.data);
+      const payload = data.payload;
+      switch (data.event) {
         case EventType.PONG: {
-          console.log("server: connected");
+          console.log("ws: connected");
           break;
         }
         case EventType.NEW_CONVERSATION: {
-          addConversation(msg.payload);
+          addConversation(payload);
+          break;
+        }
+        case EventType.MESSAGE: {
+          addMessage(payload.conversation_id, payload);
           break;
         }
       }

@@ -7,9 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn, getInitials } from "@/lib/utils";
 import { Conversation, Participant } from "@/types";
+import { useActiveConversationStore } from "@/stores/providers/active-conversation";
 
 interface ChatHeaderProps {
-  conversation: Conversation;
   otherParticipant?: Participant;
   className?: string;
 }
@@ -25,13 +25,16 @@ function getConversationTitle(
   return "Group Chat";
 }
 
-export function ChatHeader({
-  conversation,
-  otherParticipant,
-  className,
-}: ChatHeaderProps) {
+export function ChatHeader({ className }: ChatHeaderProps) {
   const router = useRouter();
-  const title = getConversationTitle(conversation, otherParticipant);
+  const conversation = useActiveConversationStore(
+    (state) => state.conversation,
+  );
+  const otherParticipant = useActiveConversationStore(
+    (state) => state.otherParticipant,
+  );
+
+  const title = getConversationTitle(conversation!, otherParticipant!);
 
   return (
     <div
@@ -60,7 +63,7 @@ export function ChatHeader({
               {getInitials(otherParticipant.name)}
             </AvatarFallback>
           </Avatar>
-          {conversation.is_online && (
+          {conversation?.is_online && (
             <span className="absolute bottom-0 right-0 size-3 rounded-full bg-green-500 ring-2 ring-background" />
           )}
         </div>
@@ -70,7 +73,7 @@ export function ChatHeader({
         <span className="font-medium text-sm text-foreground truncate">
           {title}
         </span>
-        {conversation.is_online && (
+        {conversation?.is_online && (
           <span className="text-xs text-green-600 dark:text-green-400">
             Online
           </span>

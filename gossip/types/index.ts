@@ -47,3 +47,19 @@ export interface WebsocketEvent {
   event: 100;
   payload: Record<string, unknown>;
 }
+
+export interface KeyBundle {
+  deviceId: string;
+  clientId: number;
+  signedPreKey: string;
+  signature: string;
+  prekeyId: number;
+  prekey: string;
+}
+
+export interface ConversationMeta {
+  conversationId: string;
+  count: number;
+  lastTimestamp: number;
+  lastMessageId: string;
+}

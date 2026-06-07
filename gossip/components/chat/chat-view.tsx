@@ -1,51 +1,39 @@
 "use client";
 
-import { useUserContext } from "@/context/user";
-import { Conversation, Message, Participant } from "@/types";
+import { useActiveConversationStore } from "@/stores/providers/active-conversation";
+import { ConversationNotFound } from "../conversation-not-found";
 import { ChatHeader } from "./chat-header";
-import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
-import { apiFetch } from "@/lib/utils";
+import { MessageList } from "./message-list";
 
-interface ChatViewProps {
-  conversation: Conversation;
-  messages: Message[];
-}
-
-export function ChatView({ conversation, messages }: ChatViewProps) {
-  const { user } = useUserContext();
-
-  const otherParticipant = conversation.participants.find(
-    (p) => p.user_id !== user?.id,
+export function ChatView() {
+  const conversation = useActiveConversationStore(
+    (state) => state.conversation,
   );
 
-  const handleSend = async (text: string) => {
-    if (!otherParticipant?.user_id) return;
-
-    const { data, error } = await apiFetch(`keys/${otherParticipant.user_id}`, {
-      method: "POST",
-    });
-
-    if (error) {
-      console.error("Failed to fetch key bundle:", error);
-      return;
-    }
-
-    console.log("Key bundle fetched successfully:", data);
-  };
+  if (!conversation) return <ConversationNotFound />;
 
   return (
     <div className="flex flex-col h-full pb-16 md:pb-0 animate-slide-in-right md:animate-none">
-      <ChatHeader
-        conversation={conversation}
-        otherParticipant={otherParticipant}
-      />
-      <MessageList
-        messages={messages}
-        currentUserId={user?.id ?? ""}
-        otherParticipant={otherParticipant}
-      />
-      <MessageInput conversationId={conversation.id} onSend={handleSend} />
+      <ChatHeader />
+      <MessageList />
+      <MessageInput />
     </div>
   );
 }
+
+// const setMessages = useMessageStore((store) => store.setMessages);
+// const addMessage = useMessageStore((store) => store.addMessage);
+// const messages = useMessageStore(
+//   (store) => store.getMessages(conversation.id) ?? [],
+// );
+
+// const otherParticipant = conversation.participants.find(
+//   (p) => p.user_id !== user?.id,
+// );
+
+// useEffect(() => {
+//   messageStore.getMessages(conversation.id).then((msgs) => {
+//     setMessages(conversation.id, msgs);
+//   });
+// }, [conversation.id, setMessages]);

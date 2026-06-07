@@ -111,13 +111,10 @@ func (h *Hub) handleClient(conn *websocket.Conn, userID, deviceId string) {
 
 			}
 		}
-
 	}
 }
 
 func (h *Hub) SendEvent(deviceId string, event Event, payload any) {
-	h.lock.RLock()
-	defer h.lock.RUnlock()
 	device := h.devices[deviceId]
 	if device != nil {
 		device.Conn.WriteJSON(Message{Event: event, Payload: payload})
@@ -125,8 +122,6 @@ func (h *Hub) SendEvent(deviceId string, event Event, payload any) {
 }
 
 func (h *Hub) SendConnectionEvent(deviceId string) {
-	h.lock.RLock()
-	defer h.lock.RUnlock()
 	device := h.devices[deviceId]
 	if device != nil {
 		device.Conn.WriteJSON(Message{Event: EventConnected})

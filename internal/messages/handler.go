@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"chitchat/internal/auth"
+	"chitchat/internal/ws"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -11,10 +12,11 @@ import (
 
 type Handler struct {
 	service Service
+	hub     *ws.Hub
 }
 
-func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service Service, hub *ws.Hub) *Handler {
+	return &Handler{service: service, hub: hub}
 }
 
 func (h *Handler) Register(e *echo.Echo) {
@@ -47,6 +49,17 @@ func (h *Handler) sendMessage(c *echo.Context) error {
 	msg, err := h.service.SendMessage(c.Request().Context(), conversationID, userID, deviceID, payload)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to send message")
+	}
+
+	for _, envelope := range payload.Envelopes {
+		e := MessageEnvelope{
+			ConversationID: conversationID,
+			MessageID:      msg.ID,
+			Context:        envelope.Context,
+			SentAt:         msg.SentAt,
+			SenderID:       msg.SenderID,
+		}
+		h.hub.SendEvent(envelope.RecipientDeviceID, ws.EventMessage, e)
 	}
 
 	return c.JSON(http.StatusCreated, msg)

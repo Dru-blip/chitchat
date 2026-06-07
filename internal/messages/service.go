@@ -57,6 +57,7 @@ func (s *service) SendMessage(ctx context.Context, conversationID, senderUserID,
 			IsIncoming:        envelope.IsIncoming,
 			Context:           envelope.Context,
 		})
+
 		if err != nil {
 			return nil, fmt.Errorf("create envelope: %w", err)
 		}
