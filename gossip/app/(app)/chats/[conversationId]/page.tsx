@@ -1,15 +1,15 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useConversations } from "@/context/conversations";
 import { getMockMessages } from "@/lib/mock-messages";
 import { ChatView } from "@/components/chat/chat-view";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { BubbleChatIcon } from "@hugeicons/core-free-icons";
+import { useConversationStore } from "@/stores/providers/conversation";
 
 export default function ConversationPage() {
   const params = useParams<{ conversationId: string }>();
-  const { conversations } = useConversations();
+  const conversations = useConversationStore((state) => state.conversations);
 
   const conversation = conversations.find(
     (c) => c.id === params.conversationId,

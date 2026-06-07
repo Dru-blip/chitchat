@@ -1,4 +1,5 @@
 "use client";
+import { useConversationStore } from "@/stores/providers/conversation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 interface WebsocketContextType {
@@ -23,6 +24,9 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const addConversation = useConversationStore(
+    (state) => state.addConversation,
+  );
 
   useEffect(() => {
     const socket = new WebSocket("ws://localhost:5050/ws");
@@ -54,7 +58,7 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
           break;
         }
         case EventType.NEW_CONVERSATION: {
-          console.log(msg);
+          addConversation(msg.payload);
           break;
         }
       }

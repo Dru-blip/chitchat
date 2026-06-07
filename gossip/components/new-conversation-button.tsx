@@ -16,15 +16,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/utils";
 import { toast } from "sonner";
-import { useConversations } from "@/context/conversations";
 import { Conversation } from "@/types";
+import { useConversationStore } from "@/stores/providers/conversation";
 
 export function NewConversationButton() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { addConversation } = useConversations();
+  const addConversation = useConversationStore(
+    (store) => store.addConversation,
+  );
 
   const handleCreate = async () => {
     setLoading(true);
