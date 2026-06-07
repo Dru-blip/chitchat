@@ -56,7 +56,7 @@ func (s *App) RegisterRoutes() {
 	keyHandler.Register(s.api)
 
 	convService := conversations.NewService(s.store.Queries)
-	convHandler := conversations.NewHandler(convService)
+	convHandler := conversations.NewHandler(convService, s.wsHub)
 	convHandler.Register(s.api)
 
 	msgService := messages.NewService(s.store)

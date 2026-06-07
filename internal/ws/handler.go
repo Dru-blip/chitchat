@@ -11,6 +11,7 @@ import (
 var (
 	wsUpgrader = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
+			//TODO: check origin
 			return true
 		},
 	}
@@ -39,9 +40,9 @@ func (h *Handler) Connect(c *echo.Context) error {
 	}
 
 	userSession := c.Get("user").(auth.SessionStore)
-	h.hub.Register(userSession.DeviceId, conn)
+	h.hub.Register(userSession.UserId, userSession.DeviceId, conn)
 	h.hub.SendConnectionEvent(userSession.DeviceId)
-	go h.hub.handleClient(conn, userSession.DeviceId)
+	go h.hub.handleClient(conn, userSession.UserId, userSession.DeviceId)
 
 	return nil
 }

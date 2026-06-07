@@ -11,7 +11,8 @@ const EventType = {
   DISCONNECTED: 1,
   PING: 2,
   PONG: 3,
-  MESSAGE: 4,
+  NEW_CONVERSATION: 4,
+  MESSAGE: 5,
 };
 
 const websocketContext = createContext<WebsocketContextType | undefined>(
@@ -50,6 +51,11 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
       switch (msg.event) {
         case EventType.PONG: {
           console.log("server: connected");
+          break;
+        }
+        case EventType.NEW_CONVERSATION: {
+          console.log(msg);
+          break;
         }
       }
     };

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"chitchat/internal/auth"
+	"chitchat/internal/ws"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -11,10 +12,11 @@ import (
 
 type Handler struct {
 	service Service
+	hub     *ws.Hub
 }
 
-func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service Service, hub *ws.Hub) *Handler {
+	return &Handler{service: service, hub: hub}
 }
 
 func (h *Handler) Register(e *echo.Echo) {
@@ -43,6 +45,16 @@ func (h *Handler) createConversation(c *echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create conversation")
 	}
+
+	var participantID string
+
+	for _, participant := range conv.Participants {
+		if userID != participant.UserID {
+			participantID = participant.UserID.String()
+		}
+	}
+
+	h.hub.SendToUser(participantID, ws.EventNewConversation, conv)
 
 	return c.JSON(http.StatusCreated, conv)
 }

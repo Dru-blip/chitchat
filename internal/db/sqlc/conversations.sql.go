@@ -28,6 +28,7 @@ SELECT nc.id, nc.type, nc.name, nc.initiator_id, nc.created_at, nc.updated_at,
     jsonb_agg(
         jsonb_build_object('user_id',cp.user_id,
             'joined_at',cp.joined_at,
+            'conversation_id',cp.conversation_id,
             'name',u.name,
             'email',u.email,
             'image',u.image
