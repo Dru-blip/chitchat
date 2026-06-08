@@ -3,6 +3,7 @@ package messages
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"chitchat/internal/db"
 	"chitchat/internal/db/sqlc"
@@ -11,6 +12,11 @@ import (
 )
 
 type service struct {
+	//TODO: should switch to Repo pattern
+	// but SendMessage uses direct db,
+	// so it should be divided into two objects
+	// one for repo and one for transaction
+	// since Im not testing the app anyways,I will leave it.
 	store *db.Store
 }
 
@@ -73,4 +79,28 @@ func (s *service) SendMessage(ctx context.Context, conversationID, senderUserID,
 		SenderID:       msgRow.SenderUserID,
 		SentAt:         msgRow.CreatedAt,
 	}, nil
+}
+
+func (s *service) GetMessagesFromTimestamp(ctx context.Context, conversationID uuid.UUID, recipientDeviceID uuid.UUID, timestamp time.Time) ([]Message, error) {
+	rows, err := s.store.Queries.GetMessagesFromTimestamp(ctx, sqlc.GetMessagesFromTimestampParams{
+		ConversationID:    conversationID,
+		RecipientDeviceID: recipientDeviceID,
+		CreatedAt:         timestamp,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get messages from timestamp: %w", err)
+	}
+
+	messages := make([]Message, 0, len(rows))
+	for _, row := range rows {
+		messages = append(messages, Message{
+			ID:             row.ID,
+			ConversationID: row.ConversationID,
+			SenderID:       row.SenderUserID,
+			SentAt:         row.CreatedAt,
+			Text:           row.Context,
+		})
+	}
+
+	return messages, nil
 }

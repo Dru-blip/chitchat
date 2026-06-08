@@ -62,4 +62,5 @@ export interface ConversationMeta {
   count: number;
   lastTimestamp: string;
   lastMessageId: string;
+  lastFetchedAt: string;
 }

@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -80,4 +81,53 @@ func (q *Queries) CreateMessageEnvelope(ctx context.Context, arg CreateMessageEn
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getMessagesFromTimestamp = `-- name: GetMessagesFromTimestamp :many
+SELECT m.id, m.conversation_id,m.sender_user_id, me.context,m.created_at
+FROM message_envelopes me
+JOIN messages m ON me.message_id = m.id
+WHERE m.conversation_id = $1
+AND me.recipient_device_id=$2
+AND m.created_at >= $3
+`
+
+type GetMessagesFromTimestampParams struct {
+	ConversationID    uuid.UUID
+	RecipientDeviceID uuid.UUID
+	CreatedAt         time.Time
+}
+
+type GetMessagesFromTimestampRow struct {
+	ID             uuid.UUID
+	ConversationID uuid.UUID
+	SenderUserID   uuid.UUID
+	Context        string
+	CreatedAt      time.Time
+}
+
+func (q *Queries) GetMessagesFromTimestamp(ctx context.Context, arg GetMessagesFromTimestampParams) ([]GetMessagesFromTimestampRow, error) {
+	rows, err := q.db.Query(ctx, getMessagesFromTimestamp, arg.ConversationID, arg.RecipientDeviceID, arg.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMessagesFromTimestampRow
+	for rows.Next() {
+		var i GetMessagesFromTimestampRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ConversationID,
+			&i.SenderUserID,
+			&i.Context,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -1,5 +1,6 @@
-import { Message, ConversationMeta } from "@/types";
+import { ConversationMeta, Message } from "@/types";
 import localforage from "localforage";
+import { apiFetch } from "../utils";
 
 export class MessageRepository {
   private store = localforage.createInstance({
@@ -104,5 +105,44 @@ export class MessageRepository {
       offset: 0,
       reverse: true,
     }).then((msgs) => msgs.reverse());
+  }
+
+  async fetchLatestMessages(
+    conversationId: string,
+    limit = 50,
+  ): Promise<Message[]> {
+    const convMeta = await this.getConversationMeta(conversationId);
+    const lastMessageId = convMeta?.lastMessageId;
+    if (!lastMessageId) {
+      return this.getRecentMessages(conversationId, limit);
+    }
+
+    const lastMessage = await this.getLastMessageById(
+      conversationId,
+      convMeta.lastTimestamp,
+      lastMessageId,
+    );
+    if (!lastMessage) {
+      return this.getRecentMessages(conversationId, limit);
+    }
+
+    const { data, error } = await apiFetch<Message[]>(
+      `conversations/${conversationId}/messages?timestamp=${new Date(lastMessage.sent_at).toISOString()}`,
+      {},
+    );
+
+    if (error) {
+      return [];
+    }
+
+    if (data.length === 0) {
+      return this.getRecentMessages(conversationId, limit);
+    }
+
+    for (const msg of data) {
+      await this.appendMessage(conversationId, msg);
+    }
+
+    return this.getRecentMessages(conversationId, limit);
   }
 }

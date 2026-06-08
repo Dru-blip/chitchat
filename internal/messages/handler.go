@@ -2,6 +2,7 @@ package messages
 
 import (
 	"net/http"
+	"time"
 
 	"chitchat/internal/auth"
 	"chitchat/internal/ws"
@@ -23,6 +24,8 @@ func (h *Handler) Register(e *echo.Echo) {
 	msgs := e.Group("/conversations/:conversationId/messages")
 	msgs.Use(auth.AuthMiddleware)
 	msgs.POST("", h.sendMessage)
+	msgs.GET("", h.getMessages)
+
 }
 
 func (h *Handler) sendMessage(c *echo.Context) error {
@@ -63,4 +66,26 @@ func (h *Handler) sendMessage(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, msg)
+}
+
+func (h *Handler) getMessages(c *echo.Context) error {
+	userSession := c.Get("user").(auth.SessionStore)
+	deviceID, _ := uuid.Parse(userSession.DeviceId)
+
+	conversationID, err := uuid.Parse(c.Param("conversationId"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid conversation ID")
+	}
+
+	timestamp, err := time.Parse(time.RFC3339Nano, c.QueryParam("timestamp"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid timestamp")
+	}
+
+	messages, err := h.service.GetMessagesFromTimestamp(c.Request().Context(), conversationID, deviceID, timestamp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get messages")
+	}
+
+	return c.JSON(http.StatusOK, messages)
 }

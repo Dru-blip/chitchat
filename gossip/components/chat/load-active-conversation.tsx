@@ -29,8 +29,12 @@ export function LoadActiveConversation() {
       setOtherParticipant(
         conversation.participants.find((p) => p.user_id !== user?.id)!,
       );
-      messageStore.getMessages(conversation.id).then((msgs) => {
+      messageStore.getRecentMessages(conversation.id).then((msgs) => {
         setMessages(msgs);
+      });
+
+      messageStore.fetchLatestMessages(conversation.id).then((latest) => {
+        setMessages(latest);
       });
     }
   }, [params.conversationId, conversations]);

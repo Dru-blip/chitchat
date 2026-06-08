@@ -37,4 +37,5 @@ type SendMessagePayload struct {
 
 type Service interface {
 	SendMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, senderDeviceID uuid.UUID, payload SendMessagePayload) (*Message, error)
+	GetMessagesFromTimestamp(ctx context.Context, conversationID uuid.UUID, recipientDeviceID uuid.UUID, timestamp time.Time) ([]Message, error)
 }
