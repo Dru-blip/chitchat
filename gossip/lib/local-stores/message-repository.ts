@@ -29,7 +29,7 @@ export class MessageRepository {
     )) || {
       conversationId,
       count: 0,
-      lastTimestamp: 0,
+      lastTimestamp: "0",
       lastMessageId: "",
     };
 
@@ -75,6 +75,24 @@ export class MessageRepository {
       `meta:${conversationId}`,
     );
     return meta?.count ?? 0;
+  }
+
+  async getConversationMeta(
+    conversationId: string,
+  ): Promise<ConversationMeta | null> {
+    return await this.metaStore.getItem<ConversationMeta>(
+      `meta:${conversationId}`,
+    );
+  }
+
+  async getLastMessageById(
+    conversationId: string,
+    timestamp: string,
+    messageId: string,
+  ): Promise<Message | null> {
+    return await this.store.getItem<Message>(
+      `msg:${conversationId}:${timestamp}:${messageId}`,
+    );
   }
 
   async getRecentMessages(

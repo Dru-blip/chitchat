@@ -21,19 +21,3 @@ export function ChatView() {
     </div>
   );
 }
-
-// const setMessages = useMessageStore((store) => store.setMessages);
-// const addMessage = useMessageStore((store) => store.addMessage);
-// const messages = useMessageStore(
-//   (store) => store.getMessages(conversation.id) ?? [],
-// );
-
-// const otherParticipant = conversation.participants.find(
-//   (p) => p.user_id !== user?.id,
-// );
-
-// useEffect(() => {
-//   messageStore.getMessages(conversation.id).then((msgs) => {
-//     setMessages(conversation.id, msgs);
-//   });
-// }, [conversation.id, setMessages]);

@@ -2,9 +2,11 @@
 
 import { useUserContext } from "@/context/user";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import { Conversation, Participant } from "@/types";
+import { Conversation, ConversationMeta, Message, Participant } from "@/types";
 import Link from "next/link";
 import { ConversationAvatar } from "./conversation-avatar";
+import { useEffect, useRef, useState } from "react";
+import { messageStore } from "@/lib/local-stores";
 
 function UnreadBadge({ count }: { count: number }) {
   return (
@@ -33,16 +35,31 @@ export function ConversationListItem({
   isActive: boolean;
 }) {
   const { user } = useUserContext();
+  const [convMeta, setConvMeta] = useState<ConversationMeta | null>(null);
+  const [lastMessage, setLastMessage] = useState<Message | null>(null);
 
   const otherParticipant = conv.participants.find(
     (p) => p.user_id !== user?.id,
   );
 
+  useEffect(() => {
+    messageStore.getConversationMeta(conv.id).then((meta) => {
+      if (meta) {
+        setConvMeta(meta);
+        messageStore
+          .getLastMessageById(conv.id, meta.lastTimestamp, meta.lastMessageId)
+          .then((lastMessage) => {
+            if (lastMessage) {
+              setLastMessage(lastMessage);
+            }
+          });
+      }
+    });
+  }, [conv.id]);
+
   const title = getConversationTitle(conv, otherParticipant);
-  const timestamp = formatRelativeTime(
-    conv.last_message?.sent_at ?? conv.updated_at,
-  );
-  const preview = conv.last_message?.text;
+  const timestamp = formatRelativeTime(convMeta?.lastTimestamp);
+  const preview = lastMessage?.text;
 
   return (
     <Link

@@ -9,9 +9,9 @@ export default function ChatsLayout({
 }) {
   return (
     <>
-      <ChatsShell>{children}</ChatsShell>
       <LoadConversations />
       <UploadPrekeys />
+      <ChatsShell>{children}</ChatsShell>
     </>
   );
 }

@@ -60,6 +60,6 @@ export interface KeyBundle {
 export interface ConversationMeta {
   conversationId: string;
   count: number;
-  lastTimestamp: number;
+  lastTimestamp: string;
   lastMessageId: string;
 }
