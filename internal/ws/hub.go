@@ -2,7 +2,6 @@ package ws
 
 import (
 	"encoding/json"
-	"log"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -17,11 +16,18 @@ const (
 	EventPong
 	EventNewConversation
 	EventMessage
+	EventError
+	EventQueryPresence
+	EventPresenceResponse
 )
 
+type PresenceQuery struct {
+	Users []string `json:"users"`
+}
+
 type Message struct {
-	Event   Event `json:"event"`
-	Payload any   `json:"payload"`
+	Event   Event           `json:"event"`
+	Payload json.RawMessage `json:"payload"`
 }
 
 type Hub struct {
@@ -97,7 +103,7 @@ func (h *Hub) handleClient(conn *websocket.Conn, userID, deviceId string) {
 
 		var msg Message
 		if err := json.Unmarshal(raw, &msg); err != nil {
-			log.Println("bad message:", err)
+			conn.WriteJSON(Message{Event: EventError, Payload: toRawMessage(err.Error())})
 			continue
 		}
 
@@ -105,6 +111,23 @@ func (h *Hub) handleClient(conn *websocket.Conn, userID, deviceId string) {
 		case EventPing:
 			{
 				conn.WriteJSON(Message{Event: EventPong})
+			}
+		case EventQueryPresence:
+			{
+				var query PresenceQuery
+
+				if err := json.Unmarshal(msg.Payload, &query); err != nil {
+					conn.WriteJSON(Message{Event: EventError, Payload: toRawMessage(err.Error())})
+					continue
+				}
+
+				onlineUsers := make(map[string]bool, len(query.Users))
+				for _, uID := range query.Users {
+					if _, ok := h.clients[uID]; ok {
+						onlineUsers[uID] = true
+					}
+				}
+				conn.WriteJSON(Message{Event: EventPresenceResponse, Payload: toRawMessage(onlineUsers)})
 			}
 		default:
 			{
@@ -117,7 +140,7 @@ func (h *Hub) handleClient(conn *websocket.Conn, userID, deviceId string) {
 func (h *Hub) SendEvent(deviceId string, event Event, payload any) {
 	device := h.devices[deviceId]
 	if device != nil {
-		device.Conn.WriteJSON(Message{Event: event, Payload: payload})
+		device.Conn.WriteJSON(Message{Event: event, Payload: toRawMessage(payload)})
 	}
 }
 
@@ -136,7 +159,15 @@ func (h *Hub) SendToUser(userID string, event Event, payload any) {
 
 	for _, device := range devices {
 		if device != nil {
-			device.Conn.WriteJSON(Message{Event: event, Payload: payload})
+			device.Conn.WriteJSON(Message{Event: event, Payload: toRawMessage(payload)})
 		}
 	}
+}
+
+func toRawMessage(payload any) json.RawMessage {
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return json.RawMessage([]byte(err.Error()))
+	}
+	return json.RawMessage(raw)
 }

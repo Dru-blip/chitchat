@@ -6,6 +6,7 @@ import {
   AvatarGroup,
   AvatarGroupCount,
   AvatarImage,
+  AvatarBadge,
 } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { Conversation, Participant } from "@/types";
@@ -29,10 +30,10 @@ export function ConversationAvatar({
             alt={otherParticipant.name || otherParticipant.email}
           />
           <AvatarFallback>{initials}</AvatarFallback>
+          {conv.is_online && (
+            <AvatarBadge className="bg-green-600 dark:bg-green-800" />
+          )}
         </Avatar>
-        {conv.is_online && (
-          <span className="absolute bottom-0 right-0 size-3 rounded-full bg-green-500 ring-2 ring-background" />
-        )}
       </div>
     );
   }

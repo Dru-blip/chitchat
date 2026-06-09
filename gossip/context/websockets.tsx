@@ -1,21 +1,14 @@
 "use client";
+
 import { useActiveConversationStore } from "@/stores/providers/active-conversation";
 import { useConversationStore } from "@/stores/providers/conversation";
+import { EventType } from "@/types";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 interface WebsocketContextType {
   ws: WebSocket | null;
   connected: boolean;
 }
-
-const EventType = {
-  CONNECTED: 0,
-  DISCONNECTED: 1,
-  PING: 2,
-  PONG: 3,
-  NEW_CONVERSATION: 4,
-  MESSAGE: 5,
-};
 
 const websocketContext = createContext<WebsocketContextType | undefined>(
   undefined,
@@ -28,6 +21,7 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
   const addConversation = useConversationStore(
     (state) => state.addConversation,
   );
+  const setPresence = useConversationStore((state) => state.setPresence);
   const addMessage = useActiveConversationStore((state) => state.addMessage);
 
   useEffect(() => {
@@ -66,6 +60,10 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
         }
         case EventType.MESSAGE: {
           addMessage(payload.conversation_id, payload);
+          break;
+        }
+        case EventType.PRESENCE_RESPONSE: {
+          setPresence(payload);
           break;
         }
       }

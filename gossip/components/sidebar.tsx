@@ -22,15 +22,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// ── Static data ────────────────────────────────────────────────────────────────
-
 const navItems = [
   { href: "/chats", label: "Chats", icon: BubbleChatIcon, badge: 4 },
 ];
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-// ── Skeleton for user section ──────────────────────────────────────────────────
 
 function UserSectionSkeleton() {
   return (
@@ -43,8 +37,6 @@ function UserSectionSkeleton() {
     </div>
   );
 }
-
-// ── Component ──────────────────────────────────────────────────────────────────
 
 export const Sidebar = () => {
   const pathname = usePathname();
@@ -90,11 +82,7 @@ export const Sidebar = () => {
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════
-          DESKTOP — left sidebar
-      ═══════════════════════════════════════════════ */}
       <aside className="hidden md:flex flex-col h-screen w-14 border-r border-border bg-sidebar shrink-0">
-        {/* Nav */}
         <nav className="flex-1 flex flex-col items-center gap-0.5 p-2 pt-3">
           {navItems.map((item) => {
             const isActive =
@@ -224,9 +212,9 @@ export const Sidebar = () => {
         </div>
       </aside>
 
-      {/* ═══════════════════════════════════════════════
-          MOBILE — bottom navigation bar
-      ═══════════════════════════════════════════════ */}
+      {/*
+          bottom navigation bar
+       */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-background border-t border-border">
         <div className="flex items-center justify-around px-2 h-16">
           {navItems.map((item) => {

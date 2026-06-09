@@ -5,7 +5,7 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 import { Conversation, ConversationMeta, Message, Participant } from "@/types";
 import Link from "next/link";
 import { ConversationAvatar } from "./conversation-avatar";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { messageStore } from "@/lib/local-stores";
 
 function UnreadBadge({ count }: { count: number }) {

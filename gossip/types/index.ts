@@ -64,3 +64,15 @@ export interface ConversationMeta {
   lastMessageId: string;
   lastFetchedAt: string;
 }
+
+export const EventType = {
+  CONNECTED: 0,
+  DISCONNECTED: 1,
+  PING: 2,
+  PONG: 3,
+  NEW_CONVERSATION: 4,
+  MESSAGE: 5,
+  ERROR: 6,
+  QUERY_PRESENCE: 7,
+  PRESENCE_RESPONSE: 8,
+};

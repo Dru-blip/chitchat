@@ -9,6 +9,7 @@ interface ConversationState {
 interface ConversationActions {
   addConversation: (c: Conversation) => void;
   setConversations: (c: Conversation[]) => void;
+  setPresence: (ids: Record<string, boolean>) => void;
 }
 
 export const defaultInitState: ConversationState = {
@@ -31,6 +32,13 @@ export const createConversationStore = (
     setConversations: (c) =>
       set(() => ({
         conversations: c,
+      })),
+    setPresence: (ids) =>
+      set((state) => ({
+        conversations: state.conversations.map((c) => ({
+          ...c,
+          is_online: ids[c.id],
+        })),
       })),
   }));
 };
